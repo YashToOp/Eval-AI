@@ -19,6 +19,7 @@ Scores: higher = more AI-like.
 
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass, field
 
@@ -145,7 +146,11 @@ def expected_calibration_error(labels: list[int], scores: list[float], n_bins: i
     _validate(labels, scores)
     bins: list[list[tuple[int, float]]] = [[] for _ in range(n_bins)]
     for l, s in zip(labels, scores):
-        idx = min(int(s * n_bins), n_bins - 1)
+        # Clamp both ends: a score of exactly 1.0 would index past the last
+        # bin, and a negative score would wrap around to it via Python's
+        # negative indexing, quietly averaging a confident-human item in with
+        # the confident-AI ones.
+        idx = min(max(int(s * n_bins), 0), n_bins - 1)
         bins[idx].append((l, s))
     n = len(labels)
     ece = 0.0
@@ -182,9 +187,26 @@ def bootstrap_ci(
         sample = [rng.choice(pos_idx) for _ in pos_idx] + [rng.choice(neg_idx) for _ in neg_idx]
         stats.append(statistic([labels[i] for i in sample], [scores[i] for i in sample]))
     stats.sort()
-    lo = stats[int((alpha / 2) * n_boot)]
-    hi = stats[min(n_boot - 1, int((1 - alpha / 2) * n_boot))]
-    return lo, hi
+    # Symmetric percentile indices. Using int((1 - alpha/2) * n_boot) for the
+    # upper bound leaves one fewer order statistic above the interval than
+    # below it, tilting every reported CI upward.
+    lo_idx = int(math.floor((alpha / 2) * n_boot))
+    hi_idx = int(math.ceil((1 - alpha / 2) * n_boot)) - 1
+    lo_idx = min(max(lo_idx, 0), n_boot - 1)
+    hi_idx = min(max(hi_idx, 0), n_boot - 1)
+    return stats[lo_idx], stats[hi_idx]
+
+
+def fpr_resolution(labels: list[int]) -> float:
+    """Smallest non-zero FPR the corpus can express: 1 / n_negatives.
+
+    An FPR budget below this rounds down to "zero false positives allowed",
+    so two different budgets can silently return the identical number. With
+    18 human texts the resolution is 0.056, which means a reported
+    "TPR @ 1% FPR" is not a measurement of 1% FPR at all.
+    """
+    n_neg = len(labels) - sum(labels)
+    return 1.0 / n_neg if n_neg else float("inf")
 
 
 @dataclass
@@ -198,9 +220,20 @@ class BenchmarkResult:
     auroc_ci: tuple[float, float]
     tpr_at_fpr_5: float
     tpr_at_fpr_1: float
-    metrics_at_half: dict = field(default_factory=dict)
+    threshold: float = 0.5
+    metrics_at_threshold: dict = field(default_factory=dict)
     brier: float = 0.0
     ece: float = 0.0
+    tpr_at_fpr_5_ci: tuple[float, float] = (0.0, 0.0)
+    fpr_resolution: float = 0.0
+
+    @property
+    def tpr_5_is_measurable(self) -> bool:
+        return self.fpr_resolution <= 0.05
+
+    @property
+    def tpr_1_is_measurable(self) -> bool:
+        return self.fpr_resolution <= 0.01
 
     def to_dict(self) -> dict:
         return {
@@ -210,15 +243,27 @@ class BenchmarkResult:
             "auroc": round(self.auroc, 4),
             "auroc_ci95": [round(self.auroc_ci[0], 4), round(self.auroc_ci[1], 4)],
             "tpr_at_5pct_fpr": round(self.tpr_at_fpr_5, 4),
+            "tpr_at_5pct_fpr_ci95": [round(self.tpr_at_fpr_5_ci[0], 4),
+                                     round(self.tpr_at_fpr_5_ci[1], 4)],
             "tpr_at_1pct_fpr": round(self.tpr_at_fpr_1, 4),
-            "at_threshold_0.5": {k: round(v, 4) if isinstance(v, float) else v
-                                 for k, v in self.metrics_at_half.items()},
+            "fpr_resolution": round(self.fpr_resolution, 4),
+            "tpr_at_5pct_fpr_measurable": self.tpr_5_is_measurable,
+            "tpr_at_1pct_fpr_measurable": self.tpr_1_is_measurable,
+            f"at_threshold_{self.threshold}": {
+                k: round(v, 4) if isinstance(v, float) else v
+                for k, v in self.metrics_at_threshold.items()
+            },
             "brier": round(self.brier, 4),
             "ece": round(self.ece, 4),
         }
 
 
-def evaluate_scores(detector_name: str, labels: list[int], scores: list[float]) -> BenchmarkResult:
+def evaluate_scores(
+    detector_name: str,
+    labels: list[int],
+    scores: list[float],
+    threshold: float = 0.5,
+) -> BenchmarkResult:
     """Compute the full metric suite for one detector's scores."""
     _validate(labels, scores)
     return BenchmarkResult(
@@ -229,7 +274,12 @@ def evaluate_scores(detector_name: str, labels: list[int], scores: list[float]) 
         auroc_ci=bootstrap_ci(labels, scores, auroc),
         tpr_at_fpr_5=tpr_at_fpr(labels, scores, 0.05)[0],
         tpr_at_fpr_1=tpr_at_fpr(labels, scores, 0.01)[0],
-        metrics_at_half=classification_metrics(labels, scores, 0.5),
+        tpr_at_fpr_5_ci=bootstrap_ci(
+            labels, scores, lambda l, s: tpr_at_fpr(l, s, 0.05)[0]
+        ),
+        fpr_resolution=fpr_resolution(labels),
+        threshold=threshold,
+        metrics_at_threshold=classification_metrics(labels, scores, threshold),
         brier=brier_score(labels, scores),
         ece=expected_calibration_error(labels, scores),
     )

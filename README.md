@@ -98,10 +98,15 @@ Published, peer-reviewed numbers on **long documents** (several hundred words):
 
 | System | Reported performance | Conditions |
 |---|---|---|
-| Binoculars | ~99% TPR @ 0.01% FPR | 512+ tokens, news/essay domain |
+| Binoculars | ~90%+ TPR at very low FPR, ~0.99 AUROC on its best splits | several hundred tokens, specific domains and generator models; per-dataset results vary widely |
 | DetectGPT | ~0.95 AUROC | in-domain, known source model |
 | Commercial detectors | 80–98% claimed accuracy | vendor-reported, own test sets |
 | Watermark detection | p < 1e-6 achievable | only if the generator watermarked |
+
+Treat every row as "best case on the authors' own evaluation splits". These are
+ceilings measured under favorable conditions, not numbers you should expect on
+your data — which is the entire reason this framework reports confidence
+intervals and an evasion column alongside any headline metric.
 
 And the same systems under realistic conditions:
 
@@ -171,44 +176,63 @@ ai-text-eval benchmark --human human.jsonl --ai ai.jsonl --pairs pairs.jsonl
 ```
 Corpus: 18 human, 18 AI texts
 
-detector       AUROC            95% CI  TPR@5%FPR  TPR@1%FPR  F1@0.5   Brier    ECE
------------------------------------------------------------------------------------
-stylometry    0.7130    [0.522, 0.877]      0.000      0.000   0.706  0.2242  0.196
-phrases       0.7886    [0.651, 0.900]      0.444      0.444   0.727  0.1706  0.049
-ensemble      0.7870    [0.611, 0.926]      0.667      0.667   0.706  0.1791  0.214
+detector       AUROC            95% CI  TPR@5%FPR          (95% CI)  TPR@1%FPR   F1@0.5   Brier    ECE
+------------------------------------------------------------------------------------------------------
+stylometry    0.7099    [0.519, 0.873]     0.000*    [0.000, 0.556]     0.000*    0.706  0.2253  0.206
+phrases       0.7870    [0.620, 0.926]     0.611*    [0.389, 0.833]     0.611*    0.727  0.1699  0.121
+ensemble      0.7685    [0.590, 0.907]     0.667*    [0.444, 0.833]     0.667*    0.727  0.1809  0.203
 
 Paraphrase-attack robustness (12 original/rephrased AI pairs):
 
 detector      pairs  mean orig  mean reph  mean drop  evasion rate
 ------------------------------------------------------------------
-stylometry       12      0.563      0.222      0.341       100.0%
-phrases          12      0.965      0.300      0.665       100.0%
-ensemble         12      0.764      0.261      0.503       100.0%
+stylometry       12      0.563      0.222      0.341        100.0%
+phrases          12      0.973      0.370      0.603        100.0%
+ensemble         12      0.768      0.296      0.472        100.0%
 ```
 
-Read these numbers with the following caveats, which are part of the result:
+Read these numbers with the following caveats, which are part of the result.
+The tool prints them itself, next to the table and inside the JSON report —
+a bare list of AUROCs gets quoted onward, a list that names its own confounds
+cannot be.
 
 1. **n = 36. The confidence intervals are enormous.** `stylometry`'s CI includes
-   0.52 — statistically indistinguishable from a coin flip. Anyone reporting
-   AUROC 0.71 from 36 documents without a CI is overclaiming.
-2. **The demo human corpus is a confound.** It is public-domain literary and
-   expository prose (Darwin, Austen, Melville, Woolf). A detector separating
-   *19th-century literature* from *2020s LLM blog prose* may be detecting the
-   era and genre, not the author. Real evaluation needs contemporary human text
-   in the same domain and register as the AI text.
-3. **The model-based detectors are absent from these numbers** — they need
+   0.52 — statistically indistinguishable from a coin flip. So is the apparent
+   gap between `stylometry`'s TPR of 0.000 and the ensemble's 0.667: those
+   intervals ([0.000, 0.556] and [0.444, 0.833]) overlap.
+2. **`TPR@1%FPR` is not measurable here**, hence the asterisks. With 18 human
+   texts the smallest non-zero false-positive rate the corpus can express is
+   1/18 = 0.056, so a 1% budget and a 5% budget both collapse to "zero false
+   positives allowed" and report the identical number under two names.
+3. **The demo human corpus is a confound.** It is pre-1930 public-domain prose
+   (Darwin, Austen, Melville, Woolf). A detector separating *19th-century
+   literature* from *2020s LLM blog prose* may be detecting era and genre, not
+   authorship. Real evaluation needs contemporary human text in the same domain
+   and register as the AI text.
+4. **The model-based detectors are absent from these numbers** — they need
    `torch`/`transformers` (`pip install -e '.[perplexity]'`). Perplexity and
    Binoculars are the strong signals; the two shown here are the weak ones.
-4. **The calibration constants were chosen partly by looking at this corpus**,
+   Installing the extra does not remove caveat 5 — those detectors' constants
+   are in-sample too.
+5. **The calibration constants were chosen partly by looking at this corpus**,
    so these are optimistic in-sample numbers, not held-out generalization.
-5. **The ensemble does not beat `phrases` alone here** (0.787 vs 0.789). With
+6. **The ensemble does not beat `phrases` alone here** (0.769 vs 0.787). With
    this corpus and these two weak detectors, combination buys nothing. Reported
    because it's true, not because it flatters the design.
 
-**The 100% evasion rate is the honest headline.** Every AI text that got flagged
-escaped the flag after being rewritten, with no change to the ground-truth label.
-That result is robust to all the caveats above — and it is the same result the
-published literature gets against far stronger detectors.
+**The 100% evasion rate is the headline — with one caveat that belongs right
+next to it.** Every AI text that got flagged escaped the flag after being
+rewritten, with no change to the ground-truth label. But the bundled rewrites
+were *written to be effective attacks*, and their originals are the same AI
+texts used in the detection table above, so these two tables are not
+independent evidence. Treat the demo number as an illustration of the failure
+mode, not a measurement of how easy evasion is in general.
+
+What makes the finding credible is not this corpus: it is that the published
+literature reports the same collapse against far stronger detectors (Krishna et
+al. 2023 drove multiple systems from ~70% to ~5–20% TPR with DIPPER). Use
+RAID's adversarial splits if you want to measure the size of the effect
+properly.
 
 ### Getting real data
 
@@ -256,8 +280,8 @@ src/ai_text_eval/
   metrics.py                AUROC, TPR@FPR, ECE, Brier, bootstrap CIs
   evasion.py                paraphrase-attack accounting
   dataset.py  report.py  cli.py
-tests/                      65 tests
-data/                       demo corpora
+  data/                     demo corpora (shipped with the package)
+tests/                      117 tests
 ```
 
 `pytest` to run the suite. The core package has **no dependencies**; only the
@@ -265,7 +289,43 @@ two model-based detectors need the `perplexity` extra.
 
 ---
 
-## 7. Intended use
+## 7. The framework was itself adversarially reviewed
+
+A measurement tool that is quietly wrong is worse than no tool, because its
+output looks exactly the same. This code was put through a multi-lens review
+(correctness, statistics, API, and scientific validity), with each finding
+independently verified by reproduction before being accepted. Every defect
+below was real, is fixed, and has a named regression test in
+`tests/test_review_regressions.py`.
+
+The ones worth knowing about, because they are easy to reproduce in any
+detector you write yourself:
+
+| Defect | Why it mattered |
+|---|---|
+| Multiword markers matched as bare substrings | `"here are some"` fired inside *"**W**here are some of the best places…"*, manufacturing a confident false positive from ordinary human prose |
+| `"no"`, `"co"`, `"est"`, `"vs"` treated as abbreviations | *"The answer was no. Then…"* lost a real sentence boundary, silently corrupting the burstiness feature |
+| Bulleted text collapsed into one "sentence" | LLM output is bullet-heavy, so the length statistics were meaningless on exactly the format that matters most |
+| Triad bonus was a step function | One extra triad swung the score across most of its range; now a softplus ramp |
+| Nested lexicon entries double-charged | `"in the realm of"` also billed for the `"realm"` inside it, so effective weights differed from declared ones |
+| Bootstrap upper percentile off by one | Every reported confidence interval tilted upward |
+| ECE bin index clamped only at the top | A negative score wrapped via Python negative indexing into the *top* bin |
+| `evasion_rate` returned `0.0` for 0/0 | A detector that never fires ranked as the most robust on a "higher = weaker" scale; now `None`, rendered `n/a` |
+| Binoculars cross-perplexity was transposed | Cross-entropy is not symmetric, so it computed a quantity the cited paper never defines |
+| `--threshold` never reached the metrics table | `--threshold 0.95` and `--threshold 0.5` printed identical numbers |
+| Demo data resolved by repo-relative path | `benchmark` crashed in any non-editable install |
+| Fractional labels silently truncated | `label: 0.7` loaded as `0`, recording an AI-leaning example as human ground truth |
+| `TPR@1%FPR` reported as its own column | Unmeasurable at n=18; now starred, with the resolution limit explained inline |
+
+The last one is the pattern to internalize. Nothing crashed, no test failed,
+and the table looked authoritative — it simply printed a number that the corpus
+could not support. That is the characteristic failure of eval code, and it is
+why this framework reports intervals, marks unmeasurable cells, refuses to
+score short text, and prints its own confounds next to its own results.
+
+---
+
+## 8. Intended use
 
 This is a **measurement** tool. It scores text, benchmarks detectors, and
 quantifies how much paraphrasing degrades them — the paraphrase module consumes

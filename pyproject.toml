@@ -27,5 +27,8 @@ ai-text-eval = "ai_text_eval.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+ai_text_eval = ["data/*.jsonl", "data/*.md"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

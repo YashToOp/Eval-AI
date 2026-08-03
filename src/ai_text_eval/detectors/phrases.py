@@ -122,23 +122,63 @@ STRUCTURAL: list[tuple[str, re.Pattern, float]] = [
 _TRIAD_RE = re.compile(r"\b\w[\w'’-]*, \w[\w'’-]*(?: \w[\w'’-]*)?, and \w[\w'’-]*", re.I)
 
 
+def _softplus(x: float) -> float:
+    """log(1 + e^x), computed without overflowing for large x."""
+    if x > 30:
+        return x
+    return math.log1p(math.exp(x))
+
+
+# Every phrase is matched on word boundaries, multiword ones included.
+# Plain `str.count` would fire "here are some" inside "Where are some of the
+# best places...", which is how a lexical detector manufactures a confident
+# false positive out of ordinary human prose.
+_LEXICON_PATTERNS: list[tuple[str, re.Pattern]] = [
+    (phrase, re.compile(r"(?<!\w)" + re.escape(phrase) + r"(?!\w)"))
+    # Longest first, so span claiming below resolves nesting the same way a
+    # human reader would: "in the realm of" wins over the "realm" inside it.
+    for phrase in sorted(LEXICON, key=len, reverse=True)
+]
+
+
 def _lexicon_hits(text_lower: str) -> dict[str, int]:
+    """Count marker phrases, charging each span of text at most once.
+
+    Without span claiming, "In the realm of scheduling, a rich tapestry of
+    constraints applies" is charged for `in the realm of`, `realm`,
+    `a rich tapestry`, and `tapestry` — four hits for two markers, so the
+    effective weights silently differ from the declared ones.
+    """
+    claimed: list[tuple[int, int]] = []
     hits: dict[str, int] = {}
-    for phrase in LEXICON:
-        if " " in phrase or "-" in phrase:
-            n = text_lower.count(phrase)
-        else:
-            n = len(re.findall(r"\b" + re.escape(phrase) + r"\b", text_lower))
-        if n:
-            hits[phrase] = n
+    for phrase, pattern in _LEXICON_PATTERNS:
+        for m in pattern.finditer(text_lower):
+            start, end = m.span()
+            if any(start < c_end and c_start < end for c_start, c_end in claimed):
+                continue
+            claimed.append((start, end))
+            hits[phrase] = hits.get(phrase, 0) + 1
     return hits
 
 
 class PhraseDetector(Detector):
     name = "phrases"
 
-    # Rate (weighted hits per 1000 words) at which the score reaches ~0.63.
+    # Weighted hits per 1000 words at which the score reaches ~0.74
+    # (floor 0.30 + 0.70 * (1 - 1/e)). Set by inspecting the bundled demo
+    # corpus, so it is an in-sample constant: re-fit it before trusting this
+    # detector's absolute scores on a new corpus.
     RATE_SCALE = 18.0
+
+    # Triads per sentence that ordinary prose produces without help. Only the
+    # excess above this is charged, and through a softplus rather than a hard
+    # hinge, so the contribution ramps up instead of switching on: the earlier
+    # step function moved the score across most of its range when a single
+    # triad tipped the count, which produced the detector's worst human false
+    # positives.
+    TRIAD_BASELINE_PER_SENTENCE = 0.25
+    TRIAD_WEIGHT = 1.0
+    TRIAD_SOFTNESS = 1.0
 
     def score(self, text: str) -> DetectorResult:
         toks = words(text)
@@ -157,13 +197,14 @@ class PhraseDetector(Detector):
                 structural_hits[label] = n
                 weighted += weight * n
 
-        # Triadic lists ("clear, concise, and compelling") — count per sentence
-        # so list-heavy prose is flagged, but a single triad is not.
+        # Triadic lists ("clear, concise, and compelling"). Charge only the
+        # excess over what ordinary prose produces, so one more triad moves
+        # the score a little rather than tipping it across the whole range.
         n_sents = max(1, len(sentences(text)))
         triads = len(_TRIAD_RE.findall(text))
-        triad_rate = triads / n_sents
-        if triad_rate > 0.25:
-            weighted += 2.0 * triads
+        over = triads - self.TRIAD_BASELINE_PER_SENTENCE * n_sents
+        excess_triads = self.TRIAD_SOFTNESS * _softplus(over / self.TRIAD_SOFTNESS)
+        weighted += self.TRIAD_WEIGHT * excess_triads
 
         rate = weighted * 1000.0 / n_words
         # 0 hits -> 0.5 would overstate ignorance: absence of markers in a

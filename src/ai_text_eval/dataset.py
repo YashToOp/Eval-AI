@@ -21,7 +21,11 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+# Shipped inside the package, not alongside it: a path relative to the
+# repository root resolves to nothing once the package is installed normally
+# (non-editable), and `benchmark` with no arguments would die on a missing
+# file that the user never asked about.
+DATA_DIR = Path(__file__).resolve().parent / "data"
 
 
 @dataclass
@@ -53,7 +57,16 @@ def load_labeled_jsonl(path: str | Path) -> list[LabeledText]:
                 raise ValueError(f"{path}:{line_no}: invalid JSON: {err}") from err
             if "text" not in rec or "label" not in rec:
                 raise ValueError(f"{path}:{line_no}: record needs 'text' and 'label'")
-            label = int(rec["label"])
+            raw_label = rec["label"]
+            # int() would turn a soft label of 0.7 into 0, recording an
+            # AI-leaning example as human ground truth and corrupting every
+            # metric downstream without a word of complaint.
+            if isinstance(raw_label, bool) or not isinstance(raw_label, int):
+                raise ValueError(
+                    f"{path}:{line_no}: label must be the integer 0 or 1, "
+                    f"got {raw_label!r}"
+                )
+            label = raw_label
             if label not in (0, 1):
                 raise ValueError(f"{path}:{line_no}: label must be 0 or 1")
             items.append(
@@ -75,7 +88,10 @@ def load_pairs_jsonl(path: str | Path) -> list[EvasionPair]:
             line = line.strip()
             if not line:
                 continue
-            rec = json.loads(line)
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError as err:
+                raise ValueError(f"{path}:{line_no}: invalid JSON: {err}") from err
             if "original" not in rec or "rephrased" not in rec:
                 raise ValueError(f"{path}:{line_no}: record needs 'original' and 'rephrased'")
             pairs.append(

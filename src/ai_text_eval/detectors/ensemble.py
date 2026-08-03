@@ -85,9 +85,11 @@ class EnsembleDetector(Detector):
         if not detectors:
             raise ValueError("EnsembleDetector needs at least one detector")
         self.detectors = detectors
-        self.weights = {
-            n: (weights or DEFAULT_WEIGHTS).get(n, 1.0) for n in detectors
-        }
+        # `weights or DEFAULT_WEIGHTS` would silently swap in the defaults for
+        # an explicitly-passed empty dict, i.e. exactly when the caller asked
+        # for no preset weighting at all.
+        source = DEFAULT_WEIGHTS if weights is None else weights
+        self.weights = {n: source.get(n, 1.0) for n in detectors}
         self._logistic: _LogisticModel | None = None
         self._feature_order: list[str] = sorted(detectors)
 
@@ -102,10 +104,14 @@ class EnsembleDetector(Detector):
             return 0.5
         return sum(self.weights[n] * r.score for n, r in sub.items()) / total_w
 
-    def score(self, text: str) -> DetectorResult:
-        sub = {name: det.score(text) for name, det in self.detectors.items()}
+    def combine_results(self, sub: dict[str, DetectorResult], n_words: int) -> DetectorResult:
+        """Combine already-computed sub-detector results.
+
+        Exposed so callers that need both the ensemble score and the
+        individual scores — the benchmark loop does — can score each text
+        once instead of once per detector plus once more for the ensemble.
+        """
         combined = self._combine(sub)
-        n_words = len(words(text))
         reliable = n_words >= MIN_RELIABLE_WORDS and any(r.reliable for r in sub.values())
         details = {
             "detectors": {n: {"score": round(r.score, 4), "reliable": r.reliable}
@@ -115,19 +121,13 @@ class EnsembleDetector(Detector):
         }
         return DetectorResult(score=combined, reliable=reliable, details=details)
 
+    def score(self, text: str) -> DetectorResult:
+        return self.score_verbose(text)[0]
+
     def score_verbose(self, text: str) -> tuple[DetectorResult, dict[str, DetectorResult]]:
         """Like score(), but also return the per-detector results."""
         sub = {name: det.score(text) for name, det in self.detectors.items()}
-        combined = self._combine(sub)
-        n_words = len(words(text))
-        reliable = n_words >= MIN_RELIABLE_WORDS and any(r.reliable for r in sub.values())
-        result = DetectorResult(
-            score=combined,
-            reliable=reliable,
-            details={"combination": "logistic" if self._logistic else "weighted_average",
-                     "n_words": n_words},
-        )
-        return result, sub
+        return self.combine_results(sub, len(words(text))), sub
 
     # -- calibration -------------------------------------------------
 

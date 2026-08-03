@@ -104,12 +104,13 @@ def test_evasion_accounting_is_exact():
     assert rep.mean_delta == pytest.approx(((0.9 - 0.2) + (0.8 - 0.7) + (0.3 - 0.1)) / 3)
 
 
-def test_evasion_rate_zero_when_nothing_flagged():
+def test_evasion_rate_undefined_when_nothing_flagged():
+    """0/0 is undefined, and 0.0 would read as the best possible score."""
     pairs = [EvasionPair("a", "b")]
     det = _ScriptedDetector([0.1, 0.05])
     rep = evaluate_evasion(det, pairs, threshold=0.5)
     assert rep.n_flagged_originals == 0
-    assert rep.evasion_rate == 0.0
+    assert rep.evasion_rate is None
 
 
 def test_evasion_on_real_pairs_shows_score_drop():

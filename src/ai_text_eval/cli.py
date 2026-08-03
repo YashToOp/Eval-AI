@@ -23,7 +23,7 @@ from ai_text_eval.dataset import (
     load_labeled_jsonl,
     load_pairs_jsonl,
 )
-from ai_text_eval.detectors import available_detectors
+from ai_text_eval.detectors import available_detectors, detector_names
 from ai_text_eval.detectors.ensemble import EnsembleDetector
 from ai_text_eval.evasion import evaluate_evasion
 from ai_text_eval.metrics import evaluate_scores
@@ -32,6 +32,30 @@ from ai_text_eval.report import (
     render_compare,
     render_evasion,
     render_score,
+)
+from ai_text_eval.text_features import words
+
+DEMO_CAVEAT_LIST = [
+    "The bundled human texts are pre-1930 public-domain prose and the AI texts "
+    "are modern assistant output, so era and genre are confounded with "
+    "authorship: a detector may be separating centuries, not authors.",
+    "n=36 documents. The bootstrap CIs are wide enough that most differences "
+    "between detectors here are not statistically meaningful.",
+    "The detectors' calibration constants were chosen by looking at this "
+    "corpus, so these are in-sample numbers, not held-out generalization.",
+]
+
+DEMO_CAVEAT = (
+    "Demo-corpus caveats (these numbers are NOT detector performance):\n"
+    + "\n".join(f"  - {c}" for c in DEMO_CAVEAT_LIST)
+)
+
+DEMO_EVASION_CAVEAT = (
+    "Demo-pairs caveat: the rephrasings were written to be effective attacks,\n"
+    "and their originals are the same AI texts used in the table above, so the\n"
+    "two tables are not independent evidence. Published results find the same\n"
+    "collapse against far stronger detectors, but do not read the rate here as\n"
+    "a measurement of how easy evasion is in general."
 )
 
 
@@ -96,52 +120,85 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     if args.human or args.ai:
         if not (args.human and args.ai):
             raise SystemExit("--human and --ai must be given together")
-        corpus = load_labeled_jsonl(args.human) + load_labeled_jsonl(args.ai)
-        bad_human = [x for x in load_labeled_jsonl(args.human) if x.label != 0]
-        bad_ai = [x for x in load_labeled_jsonl(args.ai) if x.label != 1]
-        if bad_human or bad_ai:
+        human = load_labeled_jsonl(args.human)
+        ai = load_labeled_jsonl(args.ai)
+        if any(x.label != 0 for x in human) or any(x.label != 1 for x in ai):
             raise SystemExit("--human file must contain only label 0, --ai only label 1")
+        corpus = human + ai
+        using_demo = False
     else:
         corpus = load_demo_corpus()
+        using_demo = True
         print("[using bundled demo corpus — pass --human/--ai for your own data]\n")
 
+    if not corpus:
+        raise SystemExit("corpus is empty — nothing to evaluate")
     labels = [item.label for item in corpus]
+    if len(set(labels)) < 2:
+        raise SystemExit(
+            "corpus contains only one class; detection metrics need both "
+            "human (label 0) and AI (label 1) texts"
+        )
     texts = [item.text for item in corpus]
 
     dets, ensemble = _build_detectors(args.fast)
-    all_detectors = {**dets, "ensemble": ensemble}
 
-    results = []
-    scores_by_detector: dict[str, list[float]] = {}
-    for name, det in all_detectors.items():
-        scores = [r.score for r in det.score_many(texts)]
-        scores_by_detector[name] = scores
-        results.append(evaluate_scores(name, labels, scores))
+    # Score each text once per base detector and reuse those results for the
+    # ensemble, rather than letting the ensemble re-run every sub-detector.
+    per_text_sub = [
+        {name: det.score(t) for name, det in dets.items()} for t in texts
+    ]
+    scores_by_detector: dict[str, list[float]] = {
+        name: [sub[name].score for sub in per_text_sub] for name in dets
+    }
+    scores_by_detector["ensemble"] = [
+        ensemble.combine_results(sub, len(words(t))).score
+        for sub, t in zip(per_text_sub, texts)
+    ]
+
+    results = [
+        evaluate_scores(name, labels, scores, threshold=args.threshold)
+        for name, scores in scores_by_detector.items()
+    ]
 
     print(f"Corpus: {labels.count(0)} human, {labels.count(1)} AI texts\n")
     print(render_benchmark(results))
+    if using_demo:
+        print("\n" + DEMO_CAVEAT)
 
     pairs = None
+    evasion_reports: list = []
     if args.pairs:
         pairs = load_pairs_jsonl(args.pairs)
-    elif not (args.human or args.ai):
+        if not pairs:
+            print(f"\n[warning: {args.pairs} contained no pairs — skipping evasion analysis]")
+    elif using_demo:
         pairs = load_demo_pairs()
     if pairs:
+        all_detectors = {**dets, "ensemble": ensemble}
         print(f"\nParaphrase-attack robustness ({len(pairs)} original/rephrased AI pairs):\n")
         evasion_reports = [
             evaluate_evasion(det, pairs, threshold=args.threshold)
             for det in all_detectors.values()
         ]
         print(render_evasion(evasion_reports))
+        if using_demo:
+            print("\n" + DEMO_EVASION_CAVEAT)
 
     if args.out:
         out_dir = Path(args.out)
         out_dir.mkdir(parents=True, exist_ok=True)
         payload = {
             "corpus": {"n_human": labels.count(0), "n_ai": labels.count(1)},
+            "threshold": args.threshold,
             "results": [r.to_dict() for r in results],
         }
-        if pairs:
+        if using_demo:
+            # The caveats have to travel with the numbers. A bare JSON blob of
+            # AUROCs gets quoted; a JSON blob that names its own confounds
+            # cannot be quoted without them.
+            payload["caveats"] = DEMO_CAVEAT_LIST
+        if evasion_reports:
             payload["evasion"] = [r.to_dict() for r in evasion_reports]
         out_path = out_dir / "benchmark.json"
         out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -150,11 +207,18 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
 
 
 def cmd_detectors(args: argparse.Namespace) -> int:
-    dets = available_detectors(include_model_based=not args.fast)
+    """List detector names without constructing anything.
+
+    Instantiating the model-based detectors here would download ~1GB of
+    weights just to print four names.
+    """
+    names = detector_names(include_model_based=not args.fast)
     print("Available detectors:")
-    for name in sorted(dets):
+    for name in sorted(names):
         print(f"  {name}")
-    if "perplexity" not in dets:
+    if args.fast:
+        print("\n(--fast: model-based detectors were not listed)")
+    elif "perplexity" not in names:
         print(
             "\n(model-based detectors unavailable — install them with\n"
             "  pip install 'ai-text-eval[perplexity]')"
@@ -205,7 +269,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except SystemExit:
+        raise
+    except (OSError, ValueError) as err:
+        # Missing files and malformed corpora are ordinary user mistakes.
+        # A traceback tells them where our code is, not what they typed wrong.
+        print(f"error: {err}", file=sys.stderr)
+        return 2
+    except KeyboardInterrupt:
+        print("interrupted", file=sys.stderr)
+        return 130
 
 
 if __name__ == "__main__":

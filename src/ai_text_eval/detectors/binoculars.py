@@ -79,10 +79,15 @@ class BinocularsDetector(Detector):
         nll = -obs_logprobs.gather(-1, labels.unsqueeze(-1)).squeeze(-1)
         log_ppl = float(nll.mean())
 
-        # Cross-entropy of performer's distribution against observer's
-        # log-probs, averaged over positions.
-        perf_probs = torch.softmax(perf_logits, dim=-1)
-        xent = float(-(perf_probs * obs_logprobs).sum(dim=-1).mean())
+        # Cross-perplexity: the observer's *distribution* scored against the
+        # performer's *log-probs*, averaged over positions. The transpose
+        # (performer probs against observer log-probs) is a different
+        # quantity — H(performer, observer) rather than H(observer,
+        # performer) — and cross-entropy is not symmetric, so swapping the
+        # arguments silently reports a number the cited paper never defines.
+        obs_probs = torch.softmax(obs_logits, dim=-1)
+        perf_logprobs = torch.log_softmax(perf_logits, dim=-1)
+        xent = float(-(obs_probs * perf_logprobs).sum(dim=-1).mean())
         if xent == 0.0:
             return None
         return log_ppl / xent

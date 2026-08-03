@@ -62,9 +62,16 @@ class EvasionReport:
         )
 
     @property
-    def evasion_rate(self) -> float:
+    def evasion_rate(self) -> float | None:
+        """Share of flagged originals that escaped after rephrasing.
+
+        None, not 0.0, when the detector flagged nothing: the rate is
+        undefined, and 0.0 is the *best* value on a "higher = weaker" scale,
+        so returning it would rank a detector that never fires above a strong
+        but evadable one.
+        """
         flagged = self.n_flagged_originals
-        return self.n_evaded / flagged if flagged else 0.0
+        return self.n_evaded / flagged if flagged else None
 
     def to_dict(self) -> dict:
         return {
@@ -80,7 +87,9 @@ class EvasionReport:
             "mean_delta": round(self.mean_delta, 4),
             "flagged_originals": self.n_flagged_originals,
             "evaded": self.n_evaded,
-            "evasion_rate": round(self.evasion_rate, 4),
+            "evasion_rate": (
+                round(self.evasion_rate, 4) if self.evasion_rate is not None else None
+            ),
         }
 
 
