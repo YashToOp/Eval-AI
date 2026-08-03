@@ -197,6 +197,123 @@ def bootstrap_ci(
     return stats[lo_idx], stats[hi_idx]
 
 
+def threshold_at_fpr(labels: list[int], scores: list[float], target_fpr: float) -> float:
+    """Lowest threshold whose empirical FPR stays within `target_fpr`.
+
+    This is the *empirical* counterpart to the conformal threshold. Use
+    conformal.calibrate for anything with consequences: this one has no
+    finite-sample guarantee and is optimistic on the data it was chosen on.
+    """
+    _validate(labels, scores)
+    human = sorted((s for s, l in zip(scores, labels) if l == 0), reverse=True)
+    if not human:
+        raise ValueError("need human texts to set an FPR threshold")
+    allowed = int(len(human) * target_fpr)
+    if allowed >= len(human):
+        return float("-inf")
+    # Anything strictly above the allowed-th highest human score is safe.
+    return math.nextafter(human[allowed], math.inf)
+
+
+def domain_adjusted_tpr(
+    labels: list[int],
+    scores: list[float],
+    domains: list[str],
+    target_fpr: float = 0.05,
+) -> tuple[float, dict[str, float]]:
+    """RAID's headline metric: TPR at a fixed FPR, macro-averaged over domains.
+
+    Averaging over domains rather than over documents stops a corpus that is
+    80% news from reporting a detector as strong when it only works on news.
+    The threshold is global (set once on all human text) so the domains are
+    compared at a single operating point.
+    """
+    _validate(labels, scores)
+    if len(domains) != len(labels):
+        raise ValueError("domains must align with labels")
+    thr = threshold_at_fpr(labels, scores, target_fpr)
+
+    per_domain: dict[str, list[bool]] = {}
+    for label, score, domain in zip(labels, scores, domains):
+        if label == 1:
+            per_domain.setdefault(domain, []).append(score >= thr)
+    if not per_domain:
+        raise ValueError("no AI texts to compute TPR over")
+    tprs = {d: sum(hits) / len(hits) for d, hits in per_domain.items()}
+    return sum(tprs.values()) / len(tprs), tprs
+
+
+@dataclass
+class SubgroupFPR:
+    """False-positive rate for one subgroup of human writers."""
+
+    group: str
+    n: int
+    n_flagged: int
+
+    @property
+    def fpr(self) -> float:
+        return self.n_flagged / self.n if self.n else 0.0
+
+    def wilson_interval(self, z: float = 1.96) -> tuple[float, float]:
+        """Wilson score interval — correct at the small n and near-zero rates
+        that subgroup analysis always involves, where a normal approximation
+        would produce negative lower bounds."""
+        n = self.n
+        if n == 0:
+            return (0.0, 1.0)
+        p = self.fpr
+        denom = 1 + z * z / n
+        center = (p + z * z / (2 * n)) / denom
+        margin = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
+        return (max(0.0, center - margin), min(1.0, center + margin))
+
+    def to_dict(self) -> dict:
+        lo, hi = self.wilson_interval()
+        return {
+            "group": self.group,
+            "n": self.n,
+            "n_flagged": self.n_flagged,
+            "fpr": round(self.fpr, 4),
+            "fpr_ci95": [round(lo, 4), round(hi, 4)],
+        }
+
+
+def subgroup_fpr(
+    labels: list[int],
+    scores: list[float],
+    groups: list[str],
+    threshold: float,
+) -> list[SubgroupFPR]:
+    """Per-subgroup false-positive rates among human-written texts.
+
+    The documented harms of this technology are all false positives
+    concentrated in identifiable groups — non-native English writers,
+    neurodivergent writers, AAVE speakers, formulaic genres. An aggregate FPR
+    that meets a policy cap while one subgroup sits far above it is a failing
+    detector, and only this breakdown shows it.
+    """
+    _validate(labels, scores)
+    if len(groups) != len(labels):
+        raise ValueError("groups must align with labels")
+    buckets: dict[str, list[float]] = {}
+    for label, score, group in zip(labels, scores, groups):
+        if label == 0:
+            buckets.setdefault(group, []).append(score)
+    return [
+        SubgroupFPR(group=g, n=len(ss), n_flagged=sum(1 for s in ss if s >= threshold))
+        for g, ss in sorted(buckets.items())
+    ]
+
+
+def max_subgroup_gap(results: list[SubgroupFPR]) -> float:
+    """Largest FPR difference between any two subgroups."""
+    if len(results) < 2:
+        return 0.0
+    rates = [r.fpr for r in results]
+    return max(rates) - min(rates)
+
+
 def fpr_resolution(labels: list[int]) -> float:
     """Smallest non-zero FPR the corpus can express: 1 / n_negatives.
 

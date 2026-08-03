@@ -23,15 +23,33 @@ from ai_text_eval.dataset import (
     load_labeled_jsonl,
     load_pairs_jsonl,
 )
+from ai_text_eval.attacks import ATTACKS, apply_attack, attack_names
+from ai_text_eval.conformal import (
+    DEFAULT_FPR_CAP,
+    ConformalCalibration,
+    calibrate,
+    load_calibrations,
+    min_calibration_size,
+    save_calibrations,
+)
 from ai_text_eval.detectors import available_detectors, detector_names
 from ai_text_eval.detectors.ensemble import EnsembleDetector
+from ai_text_eval.detectors.supervised import SupervisedDetector, cross_val_scores
+from ai_text_eval.engine import DetectionEngine
+from ai_text_eval.metrics import max_subgroup_gap, subgroup_fpr
+from ai_text_eval.normalize import normalize
+from ai_text_eval.spans import analyze_spans
 from ai_text_eval.evasion import evaluate_evasion
 from ai_text_eval.metrics import evaluate_scores
 from ai_text_eval.report import (
     render_benchmark,
     render_compare,
+    render_engine_result,
     render_evasion,
+    render_fairness,
+    render_robustness,
     render_score,
+    render_spans,
 )
 from ai_text_eval.text_features import words
 
@@ -75,6 +93,35 @@ def _read_text(arg_text: str | None, arg_file: str | None, what: str) -> str:
 def _build_detectors(fast: bool):
     dets = available_detectors(include_model_based=not fast)
     return dets, EnsembleDetector(dets)
+
+
+def _build_engine(args, corpus=None):
+    """Assemble the v2 engine: supervised primary + zero-shot corroborators.
+
+    When a labeled corpus is available the supervised layer is trained on it
+    and, for benchmarking, scored out-of-fold. With no corpus the primary is
+    absent and the engine degrades to zero-shot corroborators, which it says
+    out loud rather than pretending the architecture is intact.
+    """
+    corroborators = available_detectors(include_model_based=not args.fast)
+    primary = None
+    if corpus:
+        primary = SupervisedDetector(corroborators=corroborators)
+        try:
+            primary.fit([c.text for c in corpus], [c.label for c in corpus])
+        except ValueError:
+            primary = None
+
+    calibrations: dict[str, ConformalCalibration] = {}
+    cal_path = getattr(args, "calibration", None)
+    if cal_path:
+        calibrations = load_calibrations(cal_path)
+
+    return DetectionEngine(
+        corroborators=corroborators,
+        primary=primary,
+        calibrations=calibrations,
+    )
 
 
 def cmd_score(args: argparse.Namespace) -> int:
@@ -206,6 +253,145 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_analyze(args: argparse.Namespace) -> int:
+    """v2 pipeline: normalize, score, span, conformal threshold, ternary verdict."""
+    text = _read_text(args.text, args.file, "text")
+    corpus = load_demo_corpus() if args.train_on_demo else None
+    engine = _build_engine(args, corpus=corpus)
+    result = engine.analyze(text, language=args.language, want_spans=not args.no_spans)
+
+    if args.json:
+        print(json.dumps(result.to_dict(include_spans=args.spans), indent=2, ensure_ascii=False))
+        return 0
+
+    print(render_engine_result(result, show_spans=args.spans))
+    return 0
+
+
+def cmd_calibrate(args: argparse.Namespace) -> int:
+    """Fit conformal thresholds on human-written text at an FPR policy cap."""
+    human = load_labeled_jsonl(args.human)
+    if any(x.label != 0 for x in human):
+        raise SystemExit("--human must contain only human texts (label 0)")
+    if not human:
+        raise SystemExit("calibration needs at least one human text")
+
+    corpus = load_demo_corpus() if args.train_on_demo else None
+    engine = _build_engine(args, corpus=corpus)
+    texts = [x.text for x in human]
+    scores = engine.score_texts(texts)
+    lengths = [len(words(t)) for t in texts]
+
+    cal = calibrate(scores, lengths, alpha=args.fpr_cap, language=args.language)
+    needed = min_calibration_size(args.fpr_cap)
+
+    print(f"Language:            {cal.language}")
+    print(f"FPR policy cap:      {cal.alpha:.3%}")
+    print(f"Calibration texts:   {cal.n_calibration}")
+    print(f"Minimum required:    {needed}")
+    if cal.is_certified:
+        print(f"Global threshold:    {cal.global_threshold:.4f}")
+        print("\nStatus: CERTIFIED — flagging at this threshold keeps the")
+        print(f"        false-positive rate at or below {cal.alpha:.3%}.")
+    else:
+        print("Global threshold:    none (infinite)")
+        print(f"\nStatus: NOT CERTIFIED — {cal.shortfall} more human texts are needed.")
+        print("        The engine will abstain rather than flag, because no finite")
+        print("        threshold can honor the requested cap at this sample size.")
+    if cal.bin_thresholds:
+        print("\nLength-bucketed thresholds (multiscale conformal):")
+        edges = [0] + cal.bin_edges
+        for idx in sorted(cal.bin_counts):
+            lo = edges[idx] if idx < len(edges) else edges[-1]
+            hi = cal.bin_edges[idx] if idx < len(cal.bin_edges) else None
+            span = f"{lo}-{hi}" if hi else f"{lo}+"
+            thr = cal.bin_thresholds.get(idx, float("inf"))
+            shown = f"{thr:.4f}" if thr != float("inf") else "none (defers to global)"
+            print(f"  {span:>10} words  n={cal.bin_counts[idx]:<5} threshold={shown}")
+
+    if args.out:
+        existing = {}
+        if Path(args.out).exists():
+            existing = load_calibrations(args.out)
+        existing[cal.language] = cal
+        save_calibrations(args.out, existing)
+        print(f"\nWrote {args.out}")
+    return 0
+
+
+def cmd_spans(args: argparse.Namespace) -> int:
+    """Sentence-level analysis and AI-proportion estimate for hybrid documents."""
+    text = _read_text(args.text, args.file, "text")
+    corpus = load_demo_corpus() if args.train_on_demo else None
+    engine = _build_engine(args, corpus=corpus)
+    detector = engine.primary or next(iter(engine.corroborators.values()))
+    clean, _ = normalize(text)
+    analysis = analyze_spans(detector, clean, threshold=args.threshold)
+
+    if args.json:
+        print(json.dumps(analysis.to_dict(), indent=2, ensure_ascii=False))
+        return 0
+    print(render_spans(analysis))
+    return 0
+
+
+def cmd_robustness(args: argparse.Namespace) -> int:
+    """Measure score degradation under mechanical adversarial attacks."""
+    corpus = load_demo_corpus() if not args.ai else load_labeled_jsonl(args.ai)
+    ai_texts = [c.text for c in corpus if c.label == 1]
+    if not ai_texts:
+        raise SystemExit("robustness needs AI-labeled texts")
+
+    train = load_demo_corpus() if args.train_on_demo else None
+    engine = _build_engine(args, corpus=train)
+
+    baseline = engine.score_texts(ai_texts)
+    rows = []
+    for name in attack_names():
+        attacked = [apply_attack(name, t, seed=args.seed) for t in ai_texts]
+        with_defense = engine.score_texts(attacked)
+        # Bypass normalization to show what the attack would have done.
+        raw = [
+            _score_without_normalization(engine, t) for t in attacked
+        ]
+        rows.append((name, ATTACKS[name].description, baseline, raw, with_defense))
+
+    print(render_robustness(rows))
+    return 0
+
+
+def _score_without_normalization(engine: DetectionEngine, text: str) -> float:
+    corr = {n: d.score(text).score for n, d in engine.corroborators.items()}
+    primary = None
+    if engine.primary is not None:
+        pr = engine.primary.score(text)
+        if not pr.details.get("error"):
+            primary = pr.score
+    return engine._blend(primary, corr)
+
+
+def cmd_fairness(args: argparse.Namespace) -> int:
+    """Per-subgroup false-positive rates among human writers."""
+    if args.human:
+        human = load_labeled_jsonl(args.human)
+        if any(x.label != 0 for x in human):
+            raise SystemExit("--human must contain only human texts (label 0)")
+    else:
+        human = [c for c in load_demo_corpus() if c.label == 0]
+        print("[using bundled demo human texts — pass --human for your own]\n")
+
+    corpus = load_demo_corpus() if args.train_on_demo else None
+    engine = _build_engine(args, corpus=corpus)
+    texts = [x.text for x in human]
+    scores = engine.score_texts(texts)
+    groups = [str(x.meta.get(args.group_by, "unknown")) for x in human]
+    labels = [0] * len(texts)
+
+    results = subgroup_fpr(labels, scores, groups, threshold=args.threshold)
+    print(render_fairness(results, args.group_by, args.threshold, args.fpr_cap))
+    return 0
+
+
 def cmd_detectors(args: argparse.Namespace) -> int:
     """List detector names without constructing anything.
 
@@ -263,6 +449,68 @@ def build_parser() -> argparse.ArgumentParser:
     dp = sub.add_parser("detectors", help="list detectors available in this environment")
     dp.add_argument("--fast", action="store_true")
     dp.set_defaults(func=cmd_detectors)
+
+    # -- v2 commands ---------------------------------------------------
+
+    ap = sub.add_parser(
+        "analyze",
+        help="v2 pipeline: normalize, score, span-analyze, and return a ternary verdict",
+    )
+    ap.add_argument("text", nargs="?", help="the text (or use --file / stdin)")
+    ap.add_argument("--file", help="read the text from a file")
+    ap.add_argument("--language", default="en", help="language code for calibration lookup")
+    ap.add_argument("--calibration", help="JSON file of conformal calibrations")
+    ap.add_argument("--train-on-demo", action="store_true",
+                    help="train the supervised primary on the bundled demo corpus")
+    ap.add_argument("--spans", action="store_true", help="print per-sentence scores")
+    ap.add_argument("--no-spans", action="store_true", help="skip span analysis entirely")
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--fast", action="store_true", help="skip model-based detectors")
+    ap.set_defaults(func=cmd_analyze)
+
+    cal = sub.add_parser(
+        "calibrate",
+        help="fit conformal thresholds on human text at an FPR policy cap",
+    )
+    cal.add_argument("--human", required=True, help="JSONL of human texts (label 0)")
+    cal.add_argument("--fpr-cap", type=float, default=DEFAULT_FPR_CAP,
+                     help=f"false-positive policy cap (default {DEFAULT_FPR_CAP})")
+    cal.add_argument("--language", default="en")
+    cal.add_argument("--calibration", help=argparse.SUPPRESS)
+    cal.add_argument("--train-on-demo", action="store_true")
+    cal.add_argument("--out", help="write/merge calibrations into this JSON file")
+    cal.add_argument("--fast", action="store_true")
+    cal.set_defaults(func=cmd_calibrate)
+
+    spn = sub.add_parser("spans", help="sentence-level scores and AI-proportion estimate")
+    spn.add_argument("text", nargs="?")
+    spn.add_argument("--file")
+    spn.add_argument("--threshold", type=float, default=0.5)
+    spn.add_argument("--calibration", help=argparse.SUPPRESS)
+    spn.add_argument("--train-on-demo", action="store_true")
+    spn.add_argument("--json", action="store_true")
+    spn.add_argument("--fast", action="store_true")
+    spn.set_defaults(func=cmd_spans)
+
+    rb = sub.add_parser(
+        "robustness", help="score degradation under mechanical adversarial attacks"
+    )
+    rb.add_argument("--ai", help="JSONL of AI texts (label 1); defaults to the demo corpus")
+    rb.add_argument("--seed", type=int, default=0)
+    rb.add_argument("--calibration", help=argparse.SUPPRESS)
+    rb.add_argument("--train-on-demo", action="store_true")
+    rb.add_argument("--fast", action="store_true")
+    rb.set_defaults(func=cmd_robustness)
+
+    fr = sub.add_parser("fairness", help="per-subgroup false-positive rates among humans")
+    fr.add_argument("--human", help="JSONL of human texts (label 0)")
+    fr.add_argument("--group-by", default="domain", help="meta field to group by")
+    fr.add_argument("--threshold", type=float, default=0.5)
+    fr.add_argument("--fpr-cap", type=float, default=DEFAULT_FPR_CAP)
+    fr.add_argument("--calibration", help=argparse.SUPPRESS)
+    fr.add_argument("--train-on-demo", action="store_true")
+    fr.add_argument("--fast", action="store_true")
+    fr.set_defaults(func=cmd_fairness)
 
     return p
 

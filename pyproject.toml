@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-text-eval"
-version = "0.1.0"
-description = "An evaluation framework for AI-generated-text detection: detectors, benchmark metrics, and paraphrase-attack (evasion) analysis."
+version = "2.0.0"
+description = "An evaluation framework for AI-generated-text detection: supervised-primary ensemble, conformal false-positive control, ternary verdicts with abstention, span attribution, and robustness/fairness evaluation."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

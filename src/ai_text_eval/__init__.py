@@ -16,18 +16,39 @@ The framework is explicit about that: detectors report a `reliable` flag
 and the ensemble abstains below a minimum-evidence word count.
 """
 
+from ai_text_eval.conformal import ConformalCalibration, calibrate, min_calibration_size
 from ai_text_eval.detectors.base import Detector, DetectorResult
 from ai_text_eval.detectors.ensemble import EnsembleDetector
 from ai_text_eval.detectors.phrases import PhraseDetector
 from ai_text_eval.detectors.stylometry import StylometryDetector
+from ai_text_eval.detectors.supervised import SupervisedDetector, cross_val_scores
+from ai_text_eval.engine import DetectionEngine, EngineResult
+from ai_text_eval.normalize import normalize
+from ai_text_eval.provenance import ProvenanceSignal, ProvenanceStatus
+from ai_text_eval.spans import analyze_spans
+from ai_text_eval.verdict import Label, Verdict, decide
 
-__version__ = "0.1.0"
+__version__ = "2.0.0"
 
 __all__ = [
     "Detector",
     "DetectorResult",
     "StylometryDetector",
     "PhraseDetector",
+    "SupervisedDetector",
     "EnsembleDetector",
+    "DetectionEngine",
+    "EngineResult",
+    "ConformalCalibration",
+    "calibrate",
+    "min_calibration_size",
+    "cross_val_scores",
+    "normalize",
+    "analyze_spans",
+    "ProvenanceSignal",
+    "ProvenanceStatus",
+    "Label",
+    "Verdict",
+    "decide",
     "__version__",
 ]
