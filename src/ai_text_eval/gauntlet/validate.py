@@ -33,11 +33,9 @@ from ai_text_eval.gauntlet.spec import (
     DIFFICULTIES,
     FAIRNESS_GATED_CATEGORIES,
     FAIRNESS_GATED_TIERS,
-    FIELD_ORDER,
     ID_PATTERN,
     LABELS,
     METADATA_SCHEMA_VERSION,
-    OPTIONAL_FIELDS,
     PII_STATUSES,
     POOLED_HUMAN_TEST_MINIMUM,
     PROVENANCE_TIERS,
@@ -59,23 +57,25 @@ __all_findings__ = (Finding, Report, Severity)
 
 # -- Section 4.7 / 5.2: per-sample metadata ------------------------------
 
-def validate_sample(sample: Sample, categories: dict | None = None) -> Report:
-    """Schema completeness and cross-field consistency for one record."""
+def validate_sample(sample: Sample, categories: dict | None = None,
+                    registry: FieldRegistry | None = None) -> Report:
+    """Schema completeness and cross-field consistency for one record.
+
+    Field presence, unregistered-field, and schema-version checks are
+    delegated to the field registry (R-01) so there is a single source of
+    truth for which fields exist; this function owns the cross-field semantic
+    rules of CAS §4.4.
+    """
     r = Report(checked=1)
     cats = categories if categories is not None else load_categories()
+    reg = registry if registry is not None else load_field_registry()
     sid = sample.id or f"{sample.source_file}:{sample.source_line}"
+    schema = str(sample.get("schema_version") or METADATA_SCHEMA_VERSION)
+    schema_v = reg._v(schema)
 
-    # Presence (Section 4.7: missing any field fails release validation).
-    for name in FIELD_ORDER:
-        if name in OPTIONAL_FIELDS:
-            continue
-        if name not in sample.raw:
-            r.error("4.7", "MISSING_FIELD", f"required field {name!r} absent", sid)
-
-    if sample.get("schema_version") not in (None, METADATA_SCHEMA_VERSION):
-        r.warn("5.1", "SCHEMA_VERSION",
-               f"schema_version {sample.get('schema_version')!r} != "
-               f"{METADATA_SCHEMA_VERSION!r}", sid)
+    # Field-level checks (presence, unregistered fields, version arithmetic,
+    # lineage vocabulary) come from the registry — R-01.
+    r.extend(reg.validate_fields(sample))
 
     # Enumerations.
     if sample.split is not None and sample.split not in SPLITS:
@@ -164,28 +164,73 @@ def validate_sample(sample: Sample, categories: dict | None = None) -> Report:
         r.error("4.1", "SPAN_MAP_REQUIRED",
                 "span_map is required for COLLAB_MIXED and splice categories", sid)
     if sample.span_map:
+        shape_ok = True
         for entry in sample.span_map:
             if (not isinstance(entry, (list, tuple)) or len(entry) != 3
                     or not isinstance(entry[0], int) or not isinstance(entry[1], int)
                     or entry[2] not in ("human", "ai")):
                 r.error("4.1", "BAD_SPAN_ENTRY",
                         f"span entry {entry!r} must be [start,end,'human'|'ai']", sid)
+                shape_ok = False
                 break
+        # CAS §4.2: spans must tile the text without overlap. Only checkable
+        # once the entries are well-formed and the text is present.
+        if shape_ok and sample.text is not None:
+            r.extend(_check_span_tiling(sample, sid))
 
-    # Generator record (Sections 4.4, 5.2).
-    if sample.label in AI_INVOLVED_LABELS and sample.label != "HUMAN_AI_EDITED":
-        if sample.generator is None and "generator" in sample.raw:
+    # Generator record (CAS §4.2, §4.4). Required for every non-HUMAN label —
+    # a model was involved in the base, the edit, or the mix — and forbidden
+    # for HUMAN (its presence there is a P2 alarm). The earlier carve-out for
+    # HUMAN_AI_EDITED was wrong: the editing model still needs a record.
+    if sample.label is not None and sample.label != "HUMAN":
+        if sample.generator is None:
             r.error("4.4", "GENERATOR_REQUIRED",
-                    f"label {sample.label} requires a generator record", sid)
+                    f"label {sample.label} requires a generator record; a model "
+                    "was involved and its configuration must be recorded", sid)
     if sample.label == "HUMAN" and sample.generator is not None:
-        r.error("5.2", "GENERATOR_ON_HUMAN",
-                "generator must be null for HUMAN samples", sid)
+        r.error("4.2", "GENERATOR_ON_HUMAN",
+                "generator must be absent for HUMAN samples (P2 alarm)", sid)
     if sample.generator is not None:
         for key in ("family", "model_version", "provider", "prompt_style",
                     "decoding", "request_date", "config_ref"):
             if key not in sample.generator:
                 r.error("4.4", "GENERATOR_INCOMPLETE",
                         f"generator record missing {key!r}", sid)
+
+    # Hybrid labels imply a model-origin share strictly between 0 and 1
+    # (CAS §4.4). The pure-label shares are checked above.
+    if sample.label in ("AI_HUMAN_EDITED", "HUMAN_AI_EDITED", "COLLAB_MIXED"):
+        if share is not None and not 0.0 < share < 1.0:
+            r.error("4.4", "HYBRID_SHARE_RANGE",
+                    f"hybrid label {sample.label} requires 0 < ai_token_share < 1, "
+                    f"got {share}", sid)
+
+    # Track V: a non-empty transform record with a lineage link to a base
+    # (CAS §4.4). The lineage requirement applies once the schema supports the
+    # field (v2+); v1 predates lineage and cannot carry it.
+    if sample.track == "V":
+        if not sample.transforms:
+            r.error("4.4", "V_TRANSFORM_REQUIRED",
+                    "Track V requires a non-empty transform record", sid)
+        if schema_v >= 2:
+            lineage = sample.get("lineage") or []
+            has_base = any(isinstance(e, dict) and e.get("relation") == "derived_from"
+                           for e in lineage)
+            if not has_base:
+                r.error("4.4", "V_LINEAGE_REQUIRED",
+                        "Track V requires a derived_from lineage link to a base "
+                        "(P10)", sid)
+
+    # Difficulty / panel binding (CAS §4.2, §7.3), schema v2+. An empirical
+    # difficulty must name the panel version that produced it; a hand-set
+    # value with no panel is difficulty invented.
+    if schema_v >= 2 and "difficulty_provisional" in sample.raw:
+        provisional = bool(sample.get("difficulty_provisional"))
+        panel = sample.get("difficulty_panel_version")
+        if not provisional and not panel:
+            r.error("7.3", "DIFFICULTY_WITHOUT_PANEL",
+                    "empirical difficulty (difficulty_provisional=false) must "
+                    "name the reference panel version that produced it", sid)
 
     # Free-text fields that Section 4.7 makes mandatory.
     for name, section in (("rationale", "4.7"), ("target_weakness", "4.7")):
@@ -200,6 +245,83 @@ def validate_sample(sample: Sample, categories: dict | None = None) -> Report:
                 r.error("6.1", "BAD_DF_CODE",
                         f"expected_confusions {code!r} not a DF code", sid)
 
+    return r
+
+
+def _check_span_tiling(sample: Sample, sid: str) -> Report:
+    """CAS §4.2: spans must tile the text without overlap.
+
+    Tiling means the spans, in order, start at 0, meet end-to-start with no
+    gap and no overlap, and the last span ends exactly at the text length.
+    Origin of a span is a production fact (§3.5); this only checks geometry.
+    """
+    r = Report()
+    spans = sorted(sample.span_map, key=lambda e: e[0])
+    text_len = len(sample.text)
+    cursor = 0
+    for start, end, _origin in spans:
+        if start < 0 or end > text_len or start >= end:
+            r.error("4.2", "SPAN_OUT_OF_RANGE",
+                    f"span [{start},{end}] is not a valid range within a text of "
+                    f"length {text_len}", sid)
+            return r
+        if start < cursor:
+            r.error("4.2", "SPAN_OVERLAP",
+                    f"span [{start},{end}] overlaps the previous span ending at "
+                    f"{cursor}", sid)
+            return r
+        if start > cursor:
+            r.error("4.2", "SPAN_GAP",
+                    f"gap between {cursor} and {start}; spans must tile the text "
+                    "without gaps", sid)
+            return r
+        cursor = end
+    if cursor != text_len:
+        r.error("4.2", "SPAN_INCOMPLETE",
+                f"spans cover [0,{cursor}] but the text is {text_len} characters; "
+                "the span map must tile the whole text", sid)
+    return r
+
+
+# -- Section 4.4: cross-sample relationship resolution -------------------
+
+def validate_relationships(corpus: Corpus,
+                           registry: FieldRegistry | None = None) -> Report:
+    """CAS §4.4: every declared relationship resolves both ways (P10).
+
+    Cross-sample by nature, so this is separate from validate_sample. A
+    derived_from or supersedes target must exist; a mutual relationship
+    (tell_pair, mimicry_pair) must be declared reciprocally by its target.
+    """
+    reg = registry if registry is not None else load_field_registry()
+    r = Report(checked=len(corpus))
+    mutual = reg.mutual_relationship_types
+    known = reg.relationship_types
+
+    by_id: dict[str, Sample] = {s.id: s for s in corpus.samples if s.id}
+
+    def lineage_of(sample: Sample) -> list[dict]:
+        v = sample.get("lineage")
+        return [e for e in v if isinstance(e, dict)] if isinstance(v, list) else []
+
+    for s in corpus.samples:
+        for entry in lineage_of(s):
+            relation = entry.get("relation")
+            target = entry.get("target")
+            if relation not in known or not isinstance(target, str):
+                continue  # shape already reported by validate_fields
+            if target not in by_id:
+                r.error("4.4", "LINEAGE_TARGET_MISSING",
+                        f"lineage {relation} -> {target} does not resolve; the "
+                        "target is not in the corpus", s.id)
+                continue
+            if relation in mutual:
+                back = lineage_of(by_id[target])
+                if not any(e.get("relation") == relation and e.get("target") == s.id
+                           for e in back):
+                    r.error("4.4", "RELATIONSHIP_NOT_MUTUAL",
+                            f"{relation} to {target} is not declared reciprocally; "
+                            f"{target} must declare {relation} back to {s.id}", s.id)
     return r
 
 
@@ -315,11 +437,15 @@ def validate_release(corpus: Corpus, phase: str | None = None,
         raise ValueError(f"unknown phase {phase!r}; expected one of {tuple(CELL_TARGETS)}")
 
     # 9.1(g) metadata validation — schema-complete on every sample.
+    reg = load_field_registry(benchmark_dir)
     for s in corpus.samples:
-        r.extend(validate_sample(s, cats))
+        r.extend(validate_sample(s, cats, reg))
 
     # Split and provenance discipline feed 9.1(b).
     r.extend(validate_splits(corpus))
+
+    # CAS §4.4: declared relationships resolve both ways (P10).
+    r.extend(validate_relationships(corpus, reg))
 
     # 9.1(a) coverage: every (category x bucket x split) cell meets targets.
     targets = CELL_TARGETS[phase]

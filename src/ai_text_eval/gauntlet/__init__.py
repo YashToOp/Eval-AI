@@ -32,15 +32,26 @@ from ai_text_eval.gauntlet.spec import (
     bucket_for,
     count_words,
 )
+from ai_text_eval.gauntlet.findings import Finding, Report, Severity
+from ai_text_eval.gauntlet.ledger import (
+    Decision,
+    DecisionLedger,
+    LedgerConflictError,
+)
+from ai_text_eval.gauntlet.lifecycle import (
+    IdentifierRegistry,
+    LifecycleError,
+    State,
+    text_checksum,
+)
+from ai_text_eval.gauntlet.registry import FieldRegistry, load_field_registry
 from ai_text_eval.gauntlet.validate import (
-    Finding,
-    Report,
-    Severity,
     validate_manifest,
-    validate_release,
+    validate_relationships,
     validate_sample,
     validate_splits,
 )
+from ai_text_eval.gauntlet.validate import validate_release  # noqa: E402
 
 __all__ = [
     "SPEC_VERSION", "TRACKS", "LABELS", "LENGTH_BUCKETS", "TASKS",
@@ -49,5 +60,9 @@ __all__ = [
     "Corpus", "Manifest", "load_corpus", "load_manifest", "SplitDisciplineError",
     "Report", "Finding", "Severity",
     "validate_sample", "validate_manifest", "validate_splits", "validate_release",
+    "validate_relationships",
+    "FieldRegistry", "load_field_registry",
+    "IdentifierRegistry", "State", "LifecycleError", "text_checksum",
+    "DecisionLedger", "Decision", "LedgerConflictError",
     "BenchmarkRunner", "TaskResult", "CellResult", "wilson_interval", "quantize",
 ]
