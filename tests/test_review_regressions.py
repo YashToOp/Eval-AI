@@ -152,6 +152,32 @@ def test_triads_still_discriminate():
     assert det.score(dense).score > det.score(sparse).score
 
 
+@pytest.mark.parametrize("n_words,n_sents", [(30, 2), (45, 3), (90, 5), (200, 10)])
+def test_content_free_text_scores_at_the_floor(n_words, n_sents):
+    """Softplus never reaches zero, so charging it directly billed every text
+    for triads it did not contain — and the per-1000-words normalization
+    turned that phantom into a large rate on short input. Nonsense with no
+    markers and no triads must sit exactly at the floor, at every length."""
+    det = PhraseDetector()
+    sentence = " ".join(["zzz"] * (n_words // n_sents)) + "."
+    text = " ".join([sentence] * n_sents)
+    r = det.score(text)
+    assert r.details["lexicon_hits"] == {}
+    assert r.details["triads"] == 0
+    assert r.details["weighted_rate_per_kw"] == pytest.approx(0.0)
+    assert r.score == pytest.approx(0.30)
+
+
+def test_marker_free_score_is_length_independent():
+    """The phantom rate made the score a function of word and sentence count
+    alone: two unrelated 31-word/2-sentence passages scored byte-identically."""
+    det = PhraseDetector()
+    short = "The optimization reduces unnecessary allocations while maintaining behavior. " \
+            "Preliminary testing indicates measurable improvements across workloads."
+    long = short * 4
+    assert det.score(short).score == pytest.approx(det.score(long).score)
+
+
 # --- metrics ------------------------------------------------------------
 
 

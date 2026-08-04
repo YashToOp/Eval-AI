@@ -202,8 +202,16 @@ class PhraseDetector(Detector):
         # the score a little rather than tipping it across the whole range.
         n_sents = max(1, len(sentences(text)))
         triads = len(_TRIAD_RE.findall(text))
-        over = triads - self.TRIAD_BASELINE_PER_SENTENCE * n_sents
-        excess_triads = self.TRIAD_SOFTNESS * _softplus(over / self.TRIAD_SOFTNESS)
+        # Softplus is smooth but never reaches zero, so charging it directly
+        # bills every text for triads it does not contain — and the per-1000-
+        # words normalization turns that phantom into a large rate on short
+        # input. Anchoring at the zero-triad value makes the contribution
+        # exactly 0 when triads == 0, while staying smooth and monotone.
+        soft = self.TRIAD_SOFTNESS
+        base = -self.TRIAD_BASELINE_PER_SENTENCE * n_sents
+        excess_triads = soft * (
+            _softplus((triads + base) / soft) - _softplus(base / soft)
+        )
         weighted += self.TRIAD_WEIGHT * excess_triads
 
         rate = weighted * 1000.0 / n_words
