@@ -71,7 +71,7 @@ def validate_sample(sample: Sample, categories: dict | None = None,
     reg = registry if registry is not None else load_field_registry()
     sid = sample.id or f"{sample.source_file}:{sample.source_line}"
     schema = str(sample.get("schema_version") or METADATA_SCHEMA_VERSION)
-    schema_v = reg._v(schema)
+    schema_v = reg.parse_version(schema)
 
     # Field-level checks (presence, unregistered fields, version arithmetic,
     # lineage vocabulary) come from the registry — R-01.

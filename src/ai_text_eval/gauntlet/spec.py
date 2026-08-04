@@ -27,48 +27,87 @@ CORPUS_DIR = Path(__file__).resolve().parents[3] / "corpus"
 REGRESSION_DIR = Path(__file__).resolve().parents[3] / "regression"
 
 
-# -- Section 2.1: axes ---------------------------------------------------
+# -- Governed vocabularies (CAS §4.1) ------------------------------------
+#
+# Closed vocabularies are DATA, not code. They are read here from
+# benchmark/field_registry.json (and benchmark/axes.json) so the registry is
+# the single source of truth and a governance amendment cannot leave a stale
+# copy behind in Python.
+#
+# The read is a direct JSON load rather than a call into registry.py, because
+# registry.py imports this module; going the other way would be circular.
+# Consequently this module owns *parsing* the vocabularies and registry.py
+# owns *validating records against* them.
+#
+# Structural constants that are not vocabularies — bucket word ranges, cell
+# targets, FPR operating points — stay in code below: they are arithmetic
+# from the Benchmark Specification, not values governance adds to.
 
-TRACKS = ("H", "A", "X", "V", "F", "E", "U")
+
+def _read_benchmark_json(filename: str) -> dict:
+    path = BENCHMARK_DIR / filename
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"benchmark definition missing: {path}. Closed vocabularies are "
+            "governed data (CAS §4.1); there is no code fallback."
+        )
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+_REGISTRY_DATA = _read_benchmark_json("field_registry.json")
+_AXES_DATA = _read_benchmark_json("axes.json")
+
+
+def _vocab(name: str) -> tuple[str, ...]:
+    """A closed vocabulary from the field registry, as an immutable tuple."""
+    values = _REGISTRY_DATA.get("vocabularies", {}).get(name)
+    if not isinstance(values, list):
+        raise KeyError(
+            f"vocabulary {name!r} is not defined in the field registry; "
+            "vocabularies are added through governance, never inline"
+        )
+    return tuple(values)
+
+
+#: Section 2.1.
+TRACKS = _vocab("track")
 
 #: Section 4.1. The primary label is the authorship *process*, never the
 #: artifact. Binary labels are named in the spec as the root cause of most
 #: detector evaluation failures, so no binary alias is provided here.
-LABELS = (
-    "HUMAN",
-    "AI",
-    "AI_HUMAN_EDITED",
-    "HUMAN_AI_EDITED",
-    "COLLAB_MIXED",
-)
+LABELS = _vocab("label")
+
+#: Section 4.2. T3 is provenance *inferred* and is inadmissible as ground
+#: truth outside DEV.
+PROVENANCE_TIERS = _vocab("provenance_tier")
+
+#: Section 4.8.
+DIFFICULTIES = _vocab("difficulty")
+
+SPLITS = _vocab("split")
+
+PII_STATUSES = _vocab("pii_status")
+
+#: Section 6.1. Referenced by `expected_confusions`.
+DETECTOR_FAMILIES = tuple(_AXES_DATA["detector_family"])
+
+# -- Derived sets (logic over the vocabularies, not vocabularies themselves) --
 
 #: Labels whose base process involves a model at any stage (Section 9.3 T2).
-AI_INVOLVED_LABELS = frozenset(
-    {"AI", "AI_HUMAN_EDITED", "HUMAN_AI_EDITED", "COLLAB_MIXED"}
-)
+#: Derived: every label except the pure-human one, so adding a future hybrid
+#: label to the registry includes it here automatically.
+AI_INVOLVED_LABELS = frozenset(set(LABELS) - {"HUMAN"})
 
 #: Section 4.1: span_map is required for COLLAB_MIXED and splice categories.
 SPAN_MAP_REQUIRED_LABELS = frozenset({"COLLAB_MIXED"})
 SPAN_MAP_REQUIRED_CATEGORIES = frozenset({"V-13", "X-06", "X-07", "X-08", "X-09"})
 
-#: Section 4.2. T3 is provenance *inferred* and is inadmissible as ground
-#: truth outside DEV.
-PROVENANCE_TIERS = ("T0", "T1", "T2", "T3")
-ADMISSIBLE_TIERS_TEST_HIDDEN = frozenset({"T0", "T1", "T2"})
+#: Section 4.2: T3 is the only inadmissible tier outside DEV.
+ADMISSIBLE_TIERS_TEST_HIDDEN = frozenset(set(PROVENANCE_TIERS) - {"T3"})
 
 #: Section 4.2: fairness-gated categories require T1 or T2.
 FAIRNESS_GATED_CATEGORIES = frozenset({"H-14", "H-17"})
 FAIRNESS_GATED_TIERS = frozenset({"T1", "T2"})
-
-#: Section 4.8.
-DIFFICULTIES = ("D1", "D2", "D3", "D4", "D5")
-
-#: Section 6.1. Referenced by `expected_confusions`.
-DETECTOR_FAMILIES = ("DF1", "DF2", "DF3", "DF4", "DF5", "DF6", "DF7")
-
-SPLITS = ("dev", "test", "hidden")
-
-PII_STATUSES = ("clean", "scrubbed", "synthetic")
 
 
 # -- Section 2.5: length buckets -----------------------------------------
@@ -128,19 +167,22 @@ POOLED_HUMAN_TEST_MINIMUM: dict[str, int] = {"v1.0": 3000, "v1.1": 3000, "v2.0":
 # -- Section 5.2: metadata schema ----------------------------------------
 
 #: Field order is fixed for diff-friendliness (Section 5.1). Writers must
-#: emit in this order.
-FIELD_ORDER: tuple[str, ...] = (
-    "id", "schema_version", "corpus_version", "split", "text", "category",
-    "track", "domain", "format", "language", "length_words", "length_bucket",
-    "label", "ai_token_share", "span_map", "source_type", "provenance_tier",
-    "provenance_ref", "generator", "transforms", "topic_group_id",
-    "difficulty", "rationale", "target_weakness", "expected_confusions",
-    "noisy_label", "license", "pii_status", "created", "notes",
-)
+#: emit in this order. Sourced from the registry.
+#:
+#: This is the *v1* order deliberately: it is the BS §5.2 order, it is what
+#: `Sample.to_ordered_dict` has always emitted, and later-schema fields
+#: round-trip via the unknown-field tail. Callers needing a specific
+#: schema's order should ask the registry for it (`FieldRegistry.field_order`)
+#: rather than assume this constant tracks the newest schema.
+FIELD_ORDER: tuple[str, ...] = tuple(_REGISTRY_DATA["field_order"]["1"])
 
-#: Section 4.7 marks these as release-blocking when absent. `notes` is the
-#: only optional field in the schema.
-OPTIONAL_FIELDS = frozenset({"notes"})
+#: Fields the registry marks `required: false`. Section 4.7 makes the rest
+#: release-blocking when absent. Per canonical ruling TD-A01,
+#: `expected_confusions` is optional.
+OPTIONAL_FIELDS = frozenset(
+    name for name, meta in _REGISTRY_DATA["fields"].items()
+    if not meta.get("required", True)
+)
 
 #: Section 5.2: "TRACK-CAT-BUCKET-NNNN, e.g. V-05-B250-0031". The example
 #: shows the track letter is carried by the category prefix, so the id is

@@ -79,28 +79,38 @@ class FieldRegistry:
     # -- version arithmetic ----------------------------------------------
 
     @staticmethod
-    def _v(version: str | None) -> int:
+    def parse_version(version: str | None) -> int:
+        """Schema version as an integer, or -1 if it is not a known form.
+
+        Public because callers outside this class perform the same
+        comparison — the cross-field validator gates version-specific rules on
+        it — and reaching into a private helper to do so is how encapsulation
+        quietly erodes.
+        """
         try:
             return int(str(version))
         except (TypeError, ValueError):
             return -1
 
+    #: Deprecated private alias retained for backwards compatibility.
+    _v = parse_version
+
     def known_at(self, schema_version: str) -> set[str]:
         """Field names that exist as of `schema_version`."""
-        v = self._v(schema_version)
+        v = self.parse_version(schema_version)
         return {
             name for name, meta in self.fields.items()
-            if self._v(meta.get("since", "1")) <= v
+            if self.parse_version(meta.get("since", "1")) <= v
         }
 
     def required_at(self, schema_version: str) -> set[str]:
-        v = self._v(schema_version)
+        v = self.parse_version(schema_version)
         out = set()
         for name, meta in self.fields.items():
-            if self._v(meta.get("since", "1")) > v:
+            if self.parse_version(meta.get("since", "1")) > v:
                 continue
             dep = meta.get("deprecated_since")
-            if dep is not None and self._v(dep) <= v:
+            if dep is not None and self.parse_version(dep) <= v:
                 continue
             if meta.get("required", True):
                 out.add(name)
@@ -113,8 +123,8 @@ class FieldRegistry:
         r = Report(checked=1)
         sid = sample.id or f"{sample.source_file}:{sample.source_line}"
         declared = sample.get("schema_version")
-        rv = self._v(declared)
-        current = self._v(self.current_schema_version)
+        rv = self.parse_version(declared)
+        current = self.parse_version(self.current_schema_version)
 
         if rv < 0:
             r.error("CAS 4.1", "BAD_SCHEMA_VERSION",
@@ -149,7 +159,7 @@ class FieldRegistry:
 
         for name, meta in self.fields.items():
             dep = meta.get("deprecated_since")
-            if dep is not None and name in sample.raw and self._v(dep) <= rv:
+            if dep is not None and name in sample.raw and self.parse_version(dep) <= rv:
                 r.warn("CAS 4.1", "DEPRECATED_FIELD",
                        f"field {name!r} is deprecated since schema {dep}", sid)
 
