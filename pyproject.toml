@@ -5,15 +5,57 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ai-text-eval"
 version = "2.0.0"
-description = "An evaluation framework for AI-generated-text detection: supervised-primary ensemble, conformal false-positive control, ternary verdicts with abstention, span attribution, and robustness/fairness evaluation."
+description = "AI text detector evaluation framework with conformal false-positive control — detect ChatGPT/LLM-generated text, benchmark detectors, and measure evasion and fairness."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Eval-AI" }]
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+authors = [{ name = "YashToOp" }]
+keywords = [
+    "ai-detection",
+    "ai-text-detector",
+    "ai-content-detector",
+    "chatgpt-detector",
+    "gpt-detector",
+    "llm-detection",
+    "machine-generated-text",
+    "ai-generated-text",
+    "text-classification",
+    "conformal-prediction",
+    "false-positive-rate",
+    "detectgpt",
+    "binoculars",
+    "perplexity",
+    "burstiness",
+    "stylometry",
+    "watermarking",
+    "nlp",
+    "evaluation-framework",
+    "benchmark",
+    "adversarial-robustness",
+    "ai-fairness",
 ]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Linguistic",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/YashToOp/Eval-AI"
+Repository = "https://github.com/YashToOp/Eval-AI"
+Issues = "https://github.com/YashToOp/Eval-AI/issues"
+Changelog = "https://github.com/YashToOp/Eval-AI/releases"
 
 [project.optional-dependencies]
 # The core package is dependency-free. These extras enable the

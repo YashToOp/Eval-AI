@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+title: "ai-text-eval: an evaluation framework for AI-generated-text detection with conformal false-positive control"
+message: "If you use this software in research, please cite it."
+type: software
+authors:
+  - alias: YashToOp
+repository-code: "https://github.com/YashToOp/Eval-AI"
+url: "https://github.com/YashToOp/Eval-AI"
+abstract: >-
+  An open-source framework for evaluating machine-generated-text detectors.
+  It implements the four signal families used by production detectors
+  (perplexity, cross-model/Binoculars-style curvature, stylometry, and lexical
+  forensics), and adds distribution-free false-positive control via split and
+  multiscale conformal prediction, ternary Human/AI/Mixed verdicts with
+  mandatory abstention, span-level attribution with change-point detection,
+  Unicode homoglyph defenses, adversarial robustness evaluation, and
+  per-subgroup false-positive-rate reporting. Designed around the finding that
+  the operative risk in this domain is false positives concentrated in
+  identifiable groups of writers, rather than aggregate accuracy.
+keywords:
+  - AI text detection
+  - machine-generated text
+  - large language models
+  - conformal prediction
+  - false positive rate
+  - stylometry
+  - adversarial robustness
+  - algorithmic fairness
+  - evaluation
+license: MIT
+version: 2.0.0

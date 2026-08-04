@@ -2,14 +2,16 @@
 
 # ai-text-eval
 
-**An evaluation framework for AI-generated-text detection — with a false-positive rate you can actually certify.**
+**Open-source AI text detector and evaluation framework — detect ChatGPT/LLM-generated text, benchmark detectors, and certify your false-positive rate.**
+
+*Python · no dependencies · MIT licensed*
 
 [![Tests](https://github.com/YashToOp/Eval-AI/actions/workflows/tests.yml/badge.svg)](https://github.com/YashToOp/Eval-AI/actions/workflows/tests.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Dependencies](https://img.shields.io/badge/core%20dependencies-none-brightgreen.svg)](pyproject.toml)
 
-[Quickstart](#quickstart) · [Why](#why-this-exists) · [How detection works](#how-detection-works) · [Architecture](#architecture) · [Commands](#commands) · [Limits](#known-limits)
+[Quickstart](#quickstart) · [Why](#why-this-exists) · [How detection works](#how-detection-works) · [Architecture](#architecture) · [Commands](#commands) · [FAQ](#faq) · [Limits](#known-limits)
 
 </div>
 
@@ -378,6 +380,115 @@ real evaluation:
 | **MIRAGE** | 10 corpora, 5 domains, 17 mostly-proprietary LLMs |
 | **M4** | multi-generator, multi-domain, multilingual |
 | **HC3** | older and easier; models have moved on |
+
+---
+
+## FAQ
+
+<details open>
+<summary><b>How accurate are AI detectors, really?</b></summary>
+
+<br>
+
+On long documents, in-domain, against models they were trained on: very good —
+the best supervised systems report ~99% true-positive rate at 5% false-positive
+rate. Outside those conditions the number collapses. Paraphrasing, short text,
+a newer model, or a non-native-English writer each move it dramatically. Any
+single accuracy figure quoted without its conditions is close to meaningless,
+which is why this framework reports confidence intervals and refuses to print
+metrics its corpus cannot support.
+
+</details>
+
+<details>
+<summary><b>Can AI detectors be fooled?</b></summary>
+
+<br>
+
+Yes, reliably. Paraphrasing is the standard method and it works against every
+detector measured here — in the bundled demo, 100% of flagged texts escaped
+after rewriting. Published work drives several zero-shot detectors to ~0.001
+TPR at 1% FPR with RL-optimized rewriting. Homoglyph and zero-width tricks also
+work against detectors without a normalization stage; this one has one, and
+neutralizes them completely.
+
+Worth stating plainly: a paraphrase of AI text is still AI text. The score
+drops; the ground truth doesn't change. That gap is the detector failing, not
+the text becoming human.
+
+</details>
+
+<details>
+<summary><b>Can it detect AI in a single sentence or a short paragraph?</b></summary>
+
+<br>
+
+No, and neither can anything else. A 15-word sentence carries 20–30 tokens of
+evidence and the human/AI distributions overlap almost entirely at that length.
+This tool abstains below 100 words rather than guessing. Commercial detectors
+measurably lose accuracy below 50 words.
+
+</details>
+
+<details>
+<summary><b>Is it safe to use an AI detector to accuse a student?</b></summary>
+
+<br>
+
+No. Detectors falsely flagged 61.3% of non-native-English TOEFL essays in
+published research, with the effect replicated for neurodivergent writers and
+AAVE speakers. Dozens of universities have disabled these tools and students
+have sued over false accusations. Vendors' own documentation now says the
+output should not be the sole basis for action.
+
+This framework is built for *measuring detectors*, not for judging people. Its
+fairness command exists specifically to surface the subgroup disparities that
+aggregate accuracy hides.
+
+</details>
+
+<details>
+<summary><b>How is this different from GPTZero, Turnitin, or Originality.ai?</b></summary>
+
+<br>
+
+Those are detection *products*. This is an evaluation *framework* — its job is
+to tell you how well any detector works, including its own, and to make
+overclaiming structurally difficult. It's open source, runs locally with no
+API calls or data leaving your machine, and reports the things products
+generally don't: confidence intervals, per-subgroup false-positive rates,
+evasion robustness, and an explicit refusal when calibration is insufficient.
+
+If you need a production detector, plug one into `TransformerClassifier` and
+use this to evaluate it honestly.
+
+</details>
+
+<details>
+<summary><b>Does it work on languages other than English?</b></summary>
+
+<br>
+
+Only if you calibrate it per language, which it supports and enforces —
+score distributions differ sharply, so an English threshold carries no
+guarantee elsewhere. The engine abstains for any language it lacks a
+calibration for rather than silently reusing one. English detection far
+outpaces everything else in the literature; code-mixed text like Hinglish is
+badly under-resourced.
+
+</details>
+
+<details>
+<summary><b>Does it need a GPU or an API key?</b></summary>
+
+<br>
+
+Neither. The core package has zero dependencies and runs on CPU. The optional
+perplexity and Binoculars detectors need `torch` and `transformers`
+(`pip install -e '.[perplexity]'`) and will use a GPU if one is present.
+Nothing is sent anywhere.
+
+</details>
 
 ---
 

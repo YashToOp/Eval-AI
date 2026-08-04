@@ -1,0 +1,47 @@
+name: Bug report
+description: Something behaves incorrectly — especially a number that looks wrong
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The most valuable bug reports here are **wrong-number** bugs: the code
+        ran fine and printed something the data cannot support. Those are the
+        hardest to catch and the most damaging.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did the tool report, and what did you expect instead?
+      placeholder: |
+        `ai-text-eval benchmark` reported AUROC 0.99 on 12 documents with no
+        confidence interval. With n=12 that interval should be very wide.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The exact command, and the input if you can share it.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Output of `python --version` and `pip show ai-text-eval | head -2`.
+      render: shell
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I ran `pytest` and noted whether the suite passes
+          required: false

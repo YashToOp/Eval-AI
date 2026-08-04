@@ -1,0 +1,38 @@
+name: New detector or dataset
+description: Propose a detection method or corpus loader to add
+labels: ["enhancement"]
+body:
+  - type: input
+    id: method
+    attributes:
+      label: Method or dataset
+      placeholder: "Glimpse (Bao et al., ICLR 2025) / RAID loader"
+    validations:
+      required: true
+
+  - type: input
+    id: paper
+    attributes:
+      label: Paper or source link
+    validations:
+      required: true
+
+  - type: textarea
+    id: numbers
+    attributes:
+      label: Reported performance, and on what
+      description: >
+        Include the evaluation set the numbers come from. Headline figures in
+        this field are usually reported on the authors' own benchmark and drop
+        substantially on RAID or under adaptive attack — noting which is which
+        is more useful than the number itself.
+    validations:
+      required: true
+
+  - type: textarea
+    id: requirements
+    attributes:
+      label: What it needs to run
+      description: Model weights, API access, GPU, or nothing?
+    validations:
+      required: true
