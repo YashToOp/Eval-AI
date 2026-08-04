@@ -21,11 +21,18 @@ regression/   §8 permanent regression entries
 harness/      run_benchmark.py — executable entry point
 src/ai_text_eval/gauntlet/
               spec.py       constants that are law, each citing its section
+              findings.py   Finding/Report/Severity, shared by every checker
               sample.py     the §5.2 record
               loader.py     corpus + manifest loading, split discipline
-              validate.py   four validator layers
+              registry.py   field registry (R-01, CAS §4.1)
+              lifecycle.py  identifier registry + state machine (R-02, CAS §2)
+              ledger.py     append-only decision ledger (R-03, CAS §14.2)
+              validate.py   validator layers + cross-field rules (R-04)
               runner.py     evaluation skeleton
 ```
+
+Milestone 2 Phase A (R-01…R-04) is documented separately in
+[`MILESTONE-2-PHASE-A.md`](MILESTONE-2-PHASE-A.md).
 
 ## Layering
 
