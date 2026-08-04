@@ -1,0 +1,370 @@
+{
+ "registry_version": "2",
+ "current_schema_version": "2",
+ "source": "CAS Section 4; BS Section 5.2",
+ "note": "Fields exist only via this registry (CAS 4.1). Records must not contain fields absent from the registry as of their declared schema_version; consumers must ignore fields added after their own version. Fields are deprecated, never removed. Vocabulary values are added through governance, never invented inline.",
+ "field_order": {
+  "1": [
+   "id",
+   "schema_version",
+   "corpus_version",
+   "split",
+   "text",
+   "category",
+   "track",
+   "domain",
+   "format",
+   "language",
+   "length_words",
+   "length_bucket",
+   "label",
+   "ai_token_share",
+   "span_map",
+   "source_type",
+   "provenance_tier",
+   "provenance_ref",
+   "generator",
+   "transforms",
+   "topic_group_id",
+   "difficulty",
+   "rationale",
+   "target_weakness",
+   "expected_confusions",
+   "noisy_label",
+   "license",
+   "pii_status",
+   "created",
+   "notes"
+  ],
+  "2": [
+   "id",
+   "schema_version",
+   "corpus_version",
+   "split",
+   "text",
+   "category",
+   "track",
+   "domain",
+   "format",
+   "language",
+   "length_words",
+   "length_bucket",
+   "label",
+   "ai_token_share",
+   "span_map",
+   "source_type",
+   "provenance_tier",
+   "provenance_ref",
+   "generator",
+   "transforms",
+   "topic_group_id",
+   "difficulty",
+   "rationale",
+   "target_weakness",
+   "expected_confusions",
+   "noisy_label",
+   "license",
+   "pii_status",
+   "created",
+   "notes",
+   "lineage",
+   "difficulty_panel_version",
+   "difficulty_provisional"
+  ]
+ },
+ "fields": {
+  "id": {
+   "purpose": "Permanent unique name; never reused or renamed (CAS 9.5)",
+   "type": "string",
+   "since": "1",
+   "required": true
+  },
+  "schema_version": {
+   "purpose": "Binds the record to the registry version defining its meaning",
+   "type": "string",
+   "since": "1",
+   "required": true
+  },
+  "corpus_version": {
+   "purpose": "Release the record was authored against",
+   "type": "string",
+   "since": "1",
+   "required": true
+  },
+  "split": {
+   "purpose": "dev|test|hidden; assigned only at Stage 8 by a release manager",
+   "type": "string",
+   "since": "1",
+   "required": true,
+   "vocabulary": "split"
+  },
+  "text": {
+   "purpose": "The sample, byte-exact; never normalized in storage (BS 5.2)",
+   "type": "string",
+   "since": "1",
+   "required": true
+  },
+  "category": {
+   "purpose": "Category id from the registry (BS 3)",
+   "type": "string",
+   "since": "1",
+   "required": true,
+   "vocabulary": "category"
+  },
+  "track": {
+   "purpose": "Track letter; must agree with the category",
+   "type": "string",
+   "since": "1",
+   "required": true,
+   "vocabulary": "track"
+  },
+  "domain": {
+   "purpose": "AX2 vocabulary",
+   "type": "string",
+   "since": "1",
+   "required": true,
+   "vocabulary": "domain"
+  },
+  "format": {
+   "purpose": "AX3 vocabulary",
+   "type": "string",
+   "since": "1",
+   "required": true,
+   "vocabulary": "format"
+  },
+  "language": {
+   "purpose": "AX5 vocabulary",
+   "type": "string",
+   "since": "1",
+   "required": true,
+   "vocabulary": "language"
+  },
+  "length_words": {
+   "purpose": "Exact count by the harness counter, not contributor-supplied (CAS 4.2)",
+   "type": "integer",
+   "since": "1",
+   "required": true
+  },
+  "length_bucket": {
+   "purpose": "B25..B1000; bucket membership is ground truth (BS 2.5)",
+   "type": "string",
+   "since": "1",
+   "required": true,
+   "vocabulary": "length_bucket"
+  },
+  "label": {
+   "purpose": "Authorship process; derived mechanically from evidence, never chosen (CAS 4.2)",
+   "type": "string",
+   "since": "1",
+   "required": true,
+   "vocabulary": "label"
+  },
+  "ai_token_share": {
+   "purpose": "Fraction of final tokens of model origin; computed from stored diff chains, hand-entered values are non-conformant (CAS 4.2)",
+   "type": "number",
+   "since": "1",
+   "required": true
+  },
+  "span_map": {
+   "purpose": "Region-level origin; must tile the text without overlap; created at production time (CAS 3.5, 4.2)",
+   "type": "array_or_null",
+   "since": "1",
+   "required": true
+  },
+  "source_type": {
+   "purpose": "One-line human-readable production summary",
+   "type": "string",
+   "since": "1",
+   "required": true
+  },
+  "provenance_tier": {
+   "purpose": "T0-T3; tier expresses evidence strength, not text quality (CAS 5.1)",
+   "type": "string",
+   "since": "1",
+   "required": true,
+   "vocabulary": "provenance_tier"
+  },
+  "provenance_ref": {
+   "purpose": "Pointer to the retained evidence package; must resolve, checksums must verify",
+   "type": "string",
+   "since": "1",
+   "required": true
+  },
+  "generator": {
+   "purpose": "Full production configuration; REQUIRED whenever label is not HUMAN, MUST be absent when label is HUMAN — presence with HUMAN is a P2 alarm (CAS 4.2)",
+   "type": "object_or_null",
+   "since": "1",
+   "required": true
+  },
+  "transforms": {
+   "purpose": "Ordered transform records with method identity, version/date, parameters; each regenerable or exactly verifiable (CAS 4.2)",
+   "type": "array",
+   "since": "1",
+   "required": true
+  },
+  "topic_group_id": {
+   "purpose": "Matched-topic set link so content and process effects separate (BS 2.8)",
+   "type": "string_or_null",
+   "since": "1",
+   "required": true
+  },
+  "difficulty": {
+   "purpose": "D1-D5; provisional at candidacy, empirical after first release, never hand-edited (CAS 7)",
+   "type": "string",
+   "since": "1",
+   "required": true,
+   "vocabulary": "difficulty"
+  },
+  "rationale": {
+   "purpose": "1-3 sentences: why this sample belongs to its class and cell; non-boilerplate",
+   "type": "string",
+   "since": "1",
+   "required": true
+  },
+  "target_weakness": {
+   "purpose": "The detector assumption probed, mapped to the failure-mode registry (BS 6)",
+   "type": "string",
+   "since": "1",
+   "required": true
+  },
+  "expected_confusions": {
+   "purpose": "DF codes expected to err; optional but recommended",
+   "type": "string",
+   "since": "1",
+   "required": false
+  },
+  "noisy_label": {
+   "purpose": "True only for T3 DEV material (CAS 5.2)",
+   "type": "boolean",
+   "since": "1",
+   "required": true
+  },
+  "license": {
+   "purpose": "Legal basis for inclusion and redistribution; 'unknown' is not a value (CAS 4.2)",
+   "type": "string",
+   "since": "1",
+   "required": true
+  },
+  "pii_status": {
+   "purpose": "clean|scrubbed|synthetic; scrubbed requires the scrubbing record in evidence",
+   "type": "string",
+   "since": "1",
+   "required": true,
+   "vocabulary": "pii_status"
+  },
+  "created": {
+   "purpose": "Creation date",
+   "type": "string",
+   "since": "1",
+   "required": true
+  },
+  "notes": {
+   "purpose": "Free text; never load-bearing; nothing normative may live only in notes (CAS 4.2)",
+   "type": "string",
+   "since": "1",
+   "required": false
+  },
+  "lineage": {
+   "purpose": "Declared relationships to other identifiers (P10); every intentional relationship is declared, undeclared similarity is a defect",
+   "type": "array",
+   "since": "2",
+   "required": false
+  },
+  "difficulty_panel_version": {
+   "purpose": "Reference panel version that produced the empirical difficulty; null while provisional (CAS 7.2-7.3)",
+   "type": "string_or_null",
+   "since": "2",
+   "required": false
+  },
+  "difficulty_provisional": {
+   "purpose": "True while difficulty derives from structural facts only, before first-release panel evaluation (CAS 7.3)",
+   "type": "boolean",
+   "since": "2",
+   "required": false
+  }
+ },
+ "vocabularies": {
+  "split": [
+   "dev",
+   "test",
+   "hidden"
+  ],
+  "track": [
+   "H",
+   "A",
+   "X",
+   "V",
+   "F",
+   "E",
+   "U"
+  ],
+  "label": [
+   "HUMAN",
+   "AI",
+   "AI_HUMAN_EDITED",
+   "HUMAN_AI_EDITED",
+   "COLLAB_MIXED"
+  ],
+  "provenance_tier": [
+   "T0",
+   "T1",
+   "T2",
+   "T3"
+  ],
+  "difficulty": [
+   "D1",
+   "D2",
+   "D3",
+   "D4",
+   "D5"
+  ],
+  "length_bucket": [
+   "B25",
+   "B50",
+   "B100",
+   "B250",
+   "B500",
+   "B1000"
+  ],
+  "pii_status": [
+   "clean",
+   "scrubbed",
+   "synthetic"
+  ],
+  "category": "benchmark/categories.json",
+  "domain": "benchmark/axes.json#domain",
+  "format": "benchmark/axes.json#format",
+  "language": "benchmark/axes.json#language"
+ },
+ "relationship_types": {
+  "derived_from": "This sample was produced by transforming the target (CAS 3.6, 8.2)",
+  "supersedes": "This candidate replaces a rejected/frozen predecessor (CAS 2 Stage 2, 6.5)",
+  "tell_pair": "Tell-suppression/injection twin (BS 7.4); mutual declaration required",
+  "mimicry_pair": "Author-mimicry pairing (BS 7.7); mutual declaration required"
+ },
+ "mutual_relationship_types": [
+  "tell_pair",
+  "mimicry_pair"
+ ],
+ "roles": [
+  "contributor",
+  "generation_operator",
+  "maintainer",
+  "reviewer",
+  "adjudicator",
+  "release_manager",
+  "system"
+ ],
+ "history": [
+  {
+   "registry_version": "1",
+   "date": "2026-08-05",
+   "change": "Initial registry transcribing BS 5.2."
+  },
+  {
+   "registry_version": "2",
+   "date": "2026-08-05",
+   "change": "CAS adoption: lineage, difficulty panel binding fields; relationship-type, role vocabularies. Additive only; v1 records remain valid under v1."
+  }
+ ]
+}
