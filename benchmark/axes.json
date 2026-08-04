@@ -1,0 +1,73 @@
+{
+ "track": [
+  "H",
+  "A",
+  "X",
+  "V",
+  "F",
+  "E",
+  "U"
+ ],
+ "domain": [
+  "casual",
+  "technical",
+  "academic",
+  "creative",
+  "legal",
+  "medical",
+  "financial",
+  "marketing",
+  "support",
+  "engineering_communication"
+ ],
+ "format": [
+  "prose",
+  "email",
+  "chat_im",
+  "forum_post",
+  "markdown",
+  "bullet_dominant",
+  "table_dominant",
+  "json",
+  "yaml",
+  "code_mixed"
+ ],
+ "language": [
+  "en-native",
+  "en-nonnative",
+  "mixed_code_switched",
+  "non_english"
+ ],
+ "generator_family": [
+  "G1",
+  "G2",
+  "G3",
+  "G4",
+  "G5",
+  "G6",
+  "G7",
+  "G8",
+  "G9"
+ ],
+ "prompt_style": [
+  "PS1",
+  "PS2",
+  "PS3",
+  "PS4",
+  "PS5",
+  "PS6",
+  "PS7",
+  "PS8",
+  "PS9",
+  "PS10"
+ ],
+ "detector_family": [
+  "DF1",
+  "DF2",
+  "DF3",
+  "DF4",
+  "DF5",
+  "DF6",
+  "DF7"
+ ]
+}

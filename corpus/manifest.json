@@ -1,0 +1,36 @@
+{
+  "corpus_version": "0.0.0",
+  "metadata_schema_version": "1",
+  "spec_version": "1.0.0-draft",
+  "phase": "v1.0",
+  "status": "empty-skeleton",
+  "note": "No samples have been authored. This manifest exists so the corpus structure is executable and the release validator can run and correctly report that the corpus is not releasable. Populating it is milestone 3 and later; nothing here is benchmark data.",
+  "splits": {
+    "dev": 0,
+    "test": 0,
+    "hidden": 0
+  },
+  "checksums": {},
+  "axis_vocabularies": "../benchmark/axes.json",
+  "covering_matrix": {
+    "verified": false,
+    "note": "Section 2.7 requires mechanical verification at release time. No generator samples exist yet."
+  },
+  "decontamination": {
+    "status": "not_run",
+    "note": "Section 4.9 scan runs before release against HC3, GPT-2 output corpus, M4, RAID, MGTBench and the DEV split."
+  },
+  "category_exemptions": {
+    "F-17": {
+      "exempt_buckets": ["B25", "B50"],
+      "reason": "Section 2.5: table-dominant samples below B100 are impossible."
+    }
+  },
+  "policy": {
+    "X-12": {
+      "label": "HUMAN_AI_EDITED",
+      "transform": "MT",
+      "source": "Section 3.3 default, in force; no new policy invented."
+    }
+  }
+}

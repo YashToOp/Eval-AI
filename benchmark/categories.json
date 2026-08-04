@@ -1,0 +1,699 @@
+{
+ "spec_version": "1.0.0-draft",
+ "source": "docs/gauntlet-v1.0-spec.txt Section 3",
+ "categories": {
+  "H-01": {
+   "track": "H",
+   "name": "casual-forum",
+   "stresses": "Baseline informal register; pre-LLM forum/comment posts",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-02": {
+   "track": "H",
+   "name": "technical-writing",
+   "stresses": "Fluent, structured human prose that 'looks AI'",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-03": {
+   "track": "H",
+   "name": "email",
+   "stresses": "Formulaic openings and closings that mimic template output",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-04": {
+   "track": "H",
+   "name": "slack-im",
+   "stresses": "Minimum-length handling, non-sentence input",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-05": {
+   "track": "H",
+   "name": "github-comments",
+   "stresses": "Code-adjacent prose",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-06": {
+   "track": "H",
+   "name": "bug-reports",
+   "stresses": "Mixed prose and structured content",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-07": {
+   "track": "H",
+   "name": "code-reviews",
+   "stresses": "Short, imperative, low-context text",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-08": {
+   "track": "H",
+   "name": "documentation",
+   "stresses": "Deliberately uniform style guides producing low burstiness",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-09": {
+   "track": "H",
+   "name": "academic",
+   "stresses": "Formal register, hedging, nominalization mistaken for AI style",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-10": {
+   "track": "H",
+   "name": "creative",
+   "stresses": "High-variance style",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-11": {
+   "track": "H",
+   "name": "stream-of-conscious",
+   "stresses": "Incoherence handled as human signal, not noise",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-12": {
+   "track": "H",
+   "name": "first-drafts",
+   "stresses": "Typos, false starts, self-corrections; T1",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-13": {
+   "track": "H",
+   "name": "polished-human",
+   "stresses": "Perfect grammar as a human property",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-14": {
+   "track": "H",
+   "name": "nonnative-english",
+   "stresses": "Documented failure mode of flagging non-native writing as AI",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-15": {
+   "track": "H",
+   "name": "low-perplexity-human",
+   "stresses": "Likelihood detectors conflating 'predictable' with 'generated'",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-16": {
+   "track": "H",
+   "name": "corporate-listicle",
+   "stresses": "Lexical leakage; human prose rich in current AI tells",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-17": {
+   "track": "H",
+   "name": "student-writing",
+   "stresses": "Highest-harm deployment domain",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-18": {
+   "track": "H",
+   "name": "spoken-transcript",
+   "stresses": "Disfluencies, repair, filler tokens",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-19": {
+   "track": "H",
+   "name": "archival-pre2020",
+   "stresses": "Anchor set with zero AI-contamination risk",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "H-20": {
+   "track": "H",
+   "name": "post-llm-human",
+   "stresses": "Human style drift; humans using phrasing learned from models",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "A-01": {
+   "track": "A",
+   "name": "ai-default",
+   "stresses": "Easy baseline across all generators",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "A-02": {
+   "track": "A",
+   "name": "ai-formal",
+   "stresses": "Formal prompt style across generators and domains",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "A-03": {
+   "track": "A",
+   "name": "ai-concise",
+   "stresses": "Short-output detection",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "A-04": {
+   "track": "A",
+   "name": "ai-verbose",
+   "stresses": "Length-correlated features",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "A-05": {
+   "track": "A",
+   "name": "ai-cot-stripped",
+   "stresses": "Detectors keying on reasoning scaffolds",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "A-06": {
+   "track": "A",
+   "name": "ai-compressed",
+   "stresses": "Unusually dense output",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "A-07": {
+   "track": "A",
+   "name": "ai-fewshot-human",
+   "stresses": "Style transfer from real humans",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "A-08": {
+   "track": "A",
+   "name": "ai-persona",
+   "stresses": "Register mimicry",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "A-09": {
+   "track": "A",
+   "name": "ai-constrained",
+   "stresses": "Every stylistic heuristic simultaneously",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "A-10": {
+   "track": "A",
+   "name": "ai-decoding-sweep",
+   "stresses": "Likelihood detectors assuming near-greedy sampling",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "A-11": {
+   "track": "A",
+   "name": "ai-heldout-model",
+   "stresses": "Generalization to unseen generators (G9)",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "A-12": {
+   "track": "A",
+   "name": "ai-legacy-model",
+   "stresses": "Detectors tuned to frontier style failing on older output",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "X-01": {
+   "track": "X",
+   "name": "ai-light-edit",
+   "stresses": "AI draft, human edits <10% of tokens",
+   "expected_label": "AI_HUMAN_EDITED",
+   "notes": null
+  },
+  "X-02": {
+   "track": "X",
+   "name": "ai-heavy-rewrite",
+   "stresses": "AI draft, human rewrites >50% of tokens",
+   "expected_label": "AI_HUMAN_EDITED",
+   "notes": null
+  },
+  "X-03": {
+   "track": "X",
+   "name": "human-ai-polish",
+   "stresses": "Human draft, model fluency/flow polish",
+   "expected_label": "HUMAN_AI_EDITED",
+   "notes": null
+  },
+  "X-04": {
+   "track": "X",
+   "name": "human-grammar-fix",
+   "stresses": "Human draft, model grammar/spelling only",
+   "expected_label": "HUMAN_AI_EDITED",
+   "notes": null
+  },
+  "X-05": {
+   "track": "X",
+   "name": "human-pro-rewrite",
+   "stresses": "Human draft, model professional-register rewrite",
+   "expected_label": "HUMAN_AI_EDITED",
+   "notes": null
+  },
+  "X-06": {
+   "track": "X",
+   "name": "collab-interleave",
+   "stresses": "Alternating human/AI paragraphs, span map recorded",
+   "expected_label": "COLLAB_MIXED",
+   "notes": null
+  },
+  "X-07": {
+   "track": "X",
+   "name": "multi-round",
+   "stresses": "Three or more alternating edit rounds",
+   "expected_label": "COLLAB_MIXED",
+   "notes": null
+  },
+  "X-08": {
+   "track": "X",
+   "name": "ai-continuation",
+   "stresses": "Human opening >=30%, model completes",
+   "expected_label": "COLLAB_MIXED",
+   "notes": null
+  },
+  "X-09": {
+   "track": "X",
+   "name": "human-continuation",
+   "stresses": "AI opening, human completes",
+   "expected_label": "COLLAB_MIXED",
+   "notes": null
+  },
+  "X-10": {
+   "track": "X",
+   "name": "ai-summary-of-human",
+   "stresses": "Content features pointing the wrong way",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "X-11": {
+   "track": "X",
+   "name": "human-summary-of-ai",
+   "stresses": "Mirror-image confusion",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "X-12": {
+   "track": "X",
+   "name": "mt-human",
+   "stresses": "Translationese vs generation",
+   "expected_label": "HUMAN_AI_EDITED",
+   "notes": "Label per manifest policy decision (Section 3.3). Default in force: HUMAN_AI_EDITED with transform=MT."
+  },
+  "X-13": {
+   "track": "X",
+   "name": "mt-ai",
+   "stresses": "Whether MT launders generator signal",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "X-14": {
+   "track": "X",
+   "name": "human-translated-ai",
+   "stresses": "AI text translated by a human translator",
+   "expected_label": "COLLAB_MIXED",
+   "notes": null
+  },
+  "V-01": {
+   "track": "V",
+   "name": "high-burstiness-ai",
+   "stresses": "Generation steered for high sentence-length variance",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "V-02": {
+   "track": "V",
+   "name": "low-burstiness-human",
+   "stresses": "Human text with uniform sentence structure",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "V-03": {
+   "track": "V",
+   "name": "perfect-grammar-human",
+   "stresses": "Error-free edited human prose, maximal fluency",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "V-04": {
+   "track": "V",
+   "name": "messy-ai",
+   "stresses": "AI output with instructed typos, fragments, hedges",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "V-05": {
+   "track": "V",
+   "name": "paraphrase-attack",
+   "stresses": "AI text paraphrased at light/medium/heavy strength",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "V-06": {
+   "track": "V",
+   "name": "humanizer-tools",
+   "stresses": "AI text processed by commercial humanizer services",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "V-07": {
+   "track": "V",
+   "name": "homoglyph",
+   "stresses": "Latin-lookalike substitutions on both base classes",
+   "expected_label": null,
+   "notes": null
+  },
+  "V-08": {
+   "track": "V",
+   "name": "zero-width",
+   "stresses": "Zero-width/invisible characters, both base classes",
+   "expected_label": null,
+   "notes": null
+  },
+  "V-09": {
+   "track": "V",
+   "name": "unicode-normalization",
+   "stresses": "Preprocessing asymmetries, both base classes",
+   "expected_label": null,
+   "notes": null
+  },
+  "V-10": {
+   "track": "V",
+   "name": "tell-suppression",
+   "stresses": "AI generated with dated tells actively avoided",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "V-11": {
+   "track": "V",
+   "name": "tell-injection",
+   "stresses": "Human text deliberately written to include dated tells",
+   "expected_label": "HUMAN",
+   "notes": null
+  },
+  "V-12": {
+   "track": "V",
+   "name": "prompt-injection",
+   "stresses": "Instructions aimed at the detector; expected zero behavioral change",
+   "expected_label": null,
+   "notes": null
+  },
+  "V-13": {
+   "track": "V",
+   "name": "splice",
+   "stresses": "Human head + AI body and variants, spans recorded",
+   "expected_label": "COLLAB_MIXED",
+   "notes": null
+  },
+  "V-14": {
+   "track": "V",
+   "name": "back-translation",
+   "stresses": "Pivot-language round trips, both base classes",
+   "expected_label": null,
+   "notes": null
+  },
+  "V-15": {
+   "track": "V",
+   "name": "author-mimicry",
+   "stresses": "Stylometric identity features",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "V-16": {
+   "track": "V",
+   "name": "format-tells",
+   "stresses": "Formatting leakage; human markdown vs AI plain prose",
+   "expected_label": null,
+   "notes": null
+  },
+  "V-17": {
+   "track": "V",
+   "name": "judge-self-preference",
+   "stresses": "Self-recognition asymmetry in LLM judges",
+   "expected_label": "AI",
+   "notes": null
+  },
+  "F-01": {
+   "track": "F",
+   "name": "code-mixed-prose",
+   "stresses": "Explanations with inline code blocks",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-02": {
+   "track": "F",
+   "name": "code-comments",
+   "stresses": "Comment-only and docstring samples",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-03": {
+   "track": "F",
+   "name": "email-thread",
+   "stresses": "Multi-message threads with quoting",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-04": {
+   "track": "F",
+   "name": "issue-tracker",
+   "stresses": "Bug tracker discussions",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-05": {
+   "track": "F",
+   "name": "review-comments",
+   "stresses": "Code review threads",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-06": {
+   "track": "F",
+   "name": "rfc-discussion",
+   "stresses": "Standards and RFC-style argumentation",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-07": {
+   "track": "F",
+   "name": "kernel-list-style",
+   "stresses": "Terse technical plaintext mailing list register",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-08": {
+   "track": "F",
+   "name": "stackoverflow",
+   "stresses": "Question and answer register",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-09": {
+   "track": "F",
+   "name": "reddit",
+   "stresses": "Thread register with slang and edits",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-10": {
+   "track": "F",
+   "name": "discord",
+   "stresses": "Rapid fragmentary chat register",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-11": {
+   "track": "F",
+   "name": "legal",
+   "stresses": "Contracts, filings, legal memos",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-12": {
+   "track": "F",
+   "name": "medical",
+   "stresses": "Clinical notes; synthetic or licensed, no real PHI",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-13": {
+   "track": "F",
+   "name": "financial",
+   "stresses": "Filings and analyst-report register",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-14": {
+   "track": "F",
+   "name": "marketing",
+   "stresses": "Ad and landing-page copy",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-15": {
+   "track": "F",
+   "name": "product-docs",
+   "stresses": "Manuals, help-center articles",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-16": {
+   "track": "F",
+   "name": "markdown-heavy",
+   "stresses": "Headers, links, emphasis throughout",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-17": {
+   "track": "F",
+   "name": "table-dominant",
+   "stresses": "Content mostly in tables (B100+)",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label. Bucket exemption: B100+ only."
+  },
+  "F-18": {
+   "track": "F",
+   "name": "json",
+   "stresses": "Prose embedded in JSON values",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-19": {
+   "track": "F",
+   "name": "yaml",
+   "stresses": "Prose embedded in YAML",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "F-20": {
+   "track": "F",
+   "name": "bullet-dominant",
+   "stresses": "List-first documents",
+   "expected_label": null,
+   "notes": "Section 3.5: exists in human, AI and hybrid variants; no single expected label."
+  },
+  "E-01": {
+   "track": "E",
+   "name": "no-punctuation",
+   "stresses": "Punctuation stripped or never present",
+   "expected_label": null,
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "E-02": {
+   "track": "E",
+   "name": "run-on-sentences",
+   "stresses": "Sentences over 80 words",
+   "expected_label": null,
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "E-03": {
+   "track": "E",
+   "name": "telegraphic",
+   "stresses": "Sentences under 4 words throughout",
+   "expected_label": null,
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "E-04": {
+   "track": "E",
+   "name": "repetition",
+   "stresses": "Repeated words, stutter, copy-paste duplication",
+   "expected_label": null,
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "E-05": {
+   "track": "E",
+   "name": "random-punctuation",
+   "stresses": "Punctuation shuffled; em dash overuse and total absence variants",
+   "expected_label": null,
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "E-06": {
+   "track": "E",
+   "name": "mixed-language",
+   "stresses": "Code-switching within sentences",
+   "expected_label": null,
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "E-07": {
+   "track": "E",
+   "name": "abbreviation-heavy",
+   "stresses": "txtspeak, initialisms, jargon density",
+   "expected_label": null,
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "E-08": {
+   "track": "E",
+   "name": "typo-dense",
+   "stresses": "5-15% character error rates via keyboard-noise model",
+   "expected_label": null,
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "E-09": {
+   "track": "E",
+   "name": "ocr-noise",
+   "stresses": "Realistic OCR error patterns",
+   "expected_label": null,
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "E-10": {
+   "track": "E",
+   "name": "asr-noise",
+   "stresses": "Speech-to-text error patterns",
+   "expected_label": null,
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "E-11": {
+   "track": "E",
+   "name": "random-caps",
+   "stresses": "Case randomized or inverted",
+   "expected_label": null,
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "E-12": {
+   "track": "E",
+   "name": "copied-docs",
+   "stresses": "Verbatim reuse of pre-LLM public documentation",
+   "expected_label": "HUMAN",
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "E-13": {
+   "track": "E",
+   "name": "degenerate",
+   "stresses": "Empty, single char, emoji-only, 1MB, invalid UTF-8, null bytes, RTL",
+   "expected_label": null,
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "E-14": {
+   "track": "E",
+   "name": "emoji-heavy",
+   "stresses": "Prose with high emoji density",
+   "expected_label": null,
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "E-15": {
+   "track": "E",
+   "name": "numeric-dominant",
+   "stresses": "Text mostly numbers and units",
+   "expected_label": null,
+   "notes": "Section 3.6: both human and AI variants where the transform permits."
+  },
+  "U-01": {
+   "track": "U",
+   "name": "undecidability-probe",
+   "stresses": "Short generic low-entropy text with verified provenance in BOTH classes; scored on overconfidence rate, not accuracy",
+   "expected_label": null,
+   "notes": "Section 3.7 describes Track U without numbering its categories. U-01 is a harness-assigned id; confirm before corpus authoring begins."
+  }
+ }
+}

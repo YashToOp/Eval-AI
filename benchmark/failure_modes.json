@@ -1,0 +1,261 @@
+{
+ "spec_version": "1.0.0-draft",
+ "source": "docs/gauntlet-v1.0-spec.txt Section 6.2",
+ "note": "Transcribed exactly. Categories absent here are absent in the spec; the release validator reports them under 9.1(h) rather than inventing coverage.",
+ "failure_modes": {
+  "FM-01": {
+   "categories": [
+    "H-02",
+    "H-08",
+    "H-09",
+    "H-13",
+    "V-03"
+   ],
+   "weak_behavior": "Labels polished human prose as AI with high confidence",
+   "misleading_feature": "Fluency, structural regularity, perfect grammar",
+   "vulnerable": [
+    "DF2",
+    "DF3",
+    "DF4"
+   ]
+  },
+  "FM-02": {
+   "categories": [
+    "H-14",
+    "H-17"
+   ],
+   "weak_behavior": "Elevated false positives on populations most harmed by accusation",
+   "misleading_feature": "Low lexical diversity, template-like syntax",
+   "vulnerable": [
+    "DF1",
+    "DF3",
+    "DF2"
+   ]
+  },
+  "FM-03": {
+   "categories": [
+    "H-15",
+    "E-12"
+   ],
+   "weak_behavior": "Boilerplate and verbatim documentation flagged as AI",
+   "misleading_feature": "Low perplexity",
+   "vulnerable": [
+    "DF1",
+    "DF6"
+   ]
+  },
+  "FM-04": {
+   "categories": [
+    "H-16",
+    "V-11"
+   ],
+   "weak_behavior": "Keys on em dashes, headers, dated vocabulary and fires",
+   "misleading_feature": "Dated lexical and formatting tells",
+   "vulnerable": [
+    "DF3",
+    "DF2",
+    "DF4"
+   ]
+  },
+  "FM-05": {
+   "categories": [
+    "A-09",
+    "A-10",
+    "V-01",
+    "V-10"
+   ],
+   "weak_behavior": "Misses AI generated under style constraints or steered decoding",
+   "misleading_feature": "Burstiness and tell absence read as human",
+   "vulnerable": [
+    "DF3",
+    "DF2",
+    "DF1"
+   ]
+  },
+  "FM-06": {
+   "categories": [
+    "V-04",
+    "H-12",
+    "H-18",
+    "E-08"
+   ],
+   "weak_behavior": "Reads surface noise as proof of humanity and its absence as proof of AI",
+   "misleading_feature": "Surface noise as authorship signal",
+   "vulnerable": [
+    "DF3",
+    "DF4"
+   ]
+  },
+  "FM-07": {
+   "categories": [
+    "X-01",
+    "X-02",
+    "X-03",
+    "X-04",
+    "X-05",
+    "X-06",
+    "X-07",
+    "X-08",
+    "X-09"
+   ],
+   "weak_behavior": "Forces a binary answer or scores mid-probability without meaning it",
+   "misleading_feature": "Whichever segment dominates the feature window",
+   "vulnerable": [
+    "DF1",
+    "DF2",
+    "DF3",
+    "DF4",
+    "DF5",
+    "DF6",
+    "DF7"
+   ]
+  },
+  "FM-08": {
+   "categories": [
+    "X-10",
+    "X-11"
+   ],
+   "weak_behavior": "Content features leak into what should be a process judgment",
+   "misleading_feature": "Topical and lexical overlap with the source",
+   "vulnerable": [
+    "DF2",
+    "DF6",
+    "DF4"
+   ]
+  },
+  "FM-09": {
+   "categories": [
+    "V-05",
+    "V-06",
+    "V-14"
+   ],
+   "weak_behavior": "Detection collapses after laundering",
+   "misleading_feature": "Post-transform fluency profile",
+   "vulnerable": [
+    "DF5",
+    "DF1",
+    "DF2"
+   ]
+  },
+  "FM-10": {
+   "categories": [
+    "V-07",
+    "V-08",
+    "V-09",
+    "E-13"
+   ],
+   "weak_behavior": "Crashes, NaN, tokenizer explosion, silent truncation, or confident labels on unclassifiable input",
+   "misleading_feature": "None; this is plumbing",
+   "vulnerable": [
+    "DF1",
+    "DF2",
+    "DF3",
+    "DF4",
+    "DF5",
+    "DF6",
+    "DF7"
+   ]
+  },
+  "FM-11": {
+   "categories": [
+    "V-12"
+   ],
+   "weak_behavior": "An LLM-judge follows instructions embedded in the text under evaluation",
+   "misleading_feature": "Imperative text addressed to the classifier",
+   "vulnerable": [
+    "DF4",
+    "DF7"
+   ]
+  },
+  "FM-12": {
+   "categories": [
+    "A-11",
+    "A-12"
+   ],
+   "weak_behavior": "Sharp accuracy drop on unseen or legacy model families",
+   "misleading_feature": "Family-specific stylistic fingerprints",
+   "vulnerable": [
+    "DF2",
+    "DF1",
+    "DF6"
+   ]
+  },
+  "FM-13": {
+   "categories": [
+    "V-17"
+   ],
+   "weak_behavior": "An LLM judge systematically misclassifies its own family's output",
+   "misleading_feature": "Familiarity of the judge with its own distribution",
+   "vulnerable": [
+    "DF4"
+   ]
+  },
+  "FM-14": {
+   "categories": [
+    "F-01",
+    "F-02",
+    "F-03",
+    "F-04",
+    "F-05",
+    "F-06",
+    "F-07",
+    "F-08",
+    "F-09",
+    "F-10",
+    "F-11",
+    "F-12",
+    "F-13",
+    "F-14",
+    "F-15",
+    "F-16",
+    "F-17",
+    "F-18",
+    "F-19",
+    "F-20"
+   ],
+   "weak_behavior": "Performance varies wildly across formats; terse registers degrade to chance without confidence dropping",
+   "misleading_feature": "Structural tokens",
+   "vulnerable": [
+    "DF3",
+    "DF2",
+    "DF1"
+   ]
+  },
+  "FM-15": {
+   "categories": [
+    "U-01"
+   ],
+   "buckets": [
+    "B25",
+    "B50"
+   ],
+   "applies_to_all_tracks": true,
+   "weak_behavior": "Confident labels on 25-word texts",
+   "misleading_feature": "Any feature at all, over-trusted at short length",
+   "vulnerable": [
+    "DF1",
+    "DF2",
+    "DF3",
+    "DF4",
+    "DF5",
+    "DF6",
+    "DF7"
+   ]
+  },
+  "FM-16": {
+   "categories": [
+    "X-12",
+    "X-13",
+    "X-14",
+    "E-06"
+   ],
+   "weak_behavior": "Translationese scored as AI regardless of source; code-switched human text flagged",
+   "misleading_feature": "Machine-translation register",
+   "vulnerable": [
+    "DF1",
+    "DF2",
+    "DF3"
+   ]
+  }
+ }
+}
