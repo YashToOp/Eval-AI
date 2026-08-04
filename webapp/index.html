@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Local AI text detection evaluation — runs entirely on your machine.">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#111318">
+<title>ai-text-eval</title>
+<style>
+:root {
+  --bg: #ffffff; --panel: #f6f7f9; --panel-2: #eef0f4;
+  --fg: #14161a; --muted: #626878; --line: #dfe3ea;
+  --human: #1a7f4b; --ai: #c0392b; --mixed: #b8860b; --abstain: #4a6fa5;
+  --accent: #3b5bdb;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel-2: #1e222b;
+    --fg: #e6e8ee; --muted: #8b93a7; --line: #2a2f3a;
+    --human: #4ade80; --ai: #f87171; --mixed: #fbbf24; --abstain: #7dd3fc;
+    --accent: #748ffc;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font-family: var(--sans); line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 940px; margin: 0 auto; padding: 28px 20px 80px; }
+
+header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+h1 .v { color: var(--muted); font-weight: 400; }
+.sub { color: var(--muted); font-size: 13px; margin: 0 0 22px; }
+
+.panel {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 16px; margin-bottom: 16px;
+}
+h2 {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); margin: 0 0 12px; font-weight: 600;
+}
+
+textarea {
+  width: 100%; min-height: 190px; resize: vertical;
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 12px;
+  font-family: var(--mono); font-size: 13px; line-height: 1.6;
+}
+textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+.controls {
+  display: flex; align-items: center; gap: 14px;
+  flex-wrap: wrap; margin-top: 12px;
+}
+button {
+  background: var(--accent); color: #fff; border: 0; border-radius: 7px;
+  padding: 9px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+  font-family: inherit;
+}
+button:hover:not(:disabled) { filter: brightness(1.08); }
+button:disabled { opacity: .5; cursor: default; }
+button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); font-weight: 500; }
+select, label { font-size: 13px; color: var(--muted); font-family: inherit; }
+select {
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
+}
+.count { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-left: auto; }
+.count.short { color: var(--mixed); }
+
+/* verdict */
+.verdict { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.badge {
+  font-size: 15px; font-weight: 700; letter-spacing: .06em;
+  padding: 7px 16px; border-radius: 7px; color: #fff; white-space: nowrap;
+}
+.badge.human { background: var(--human); }
+.badge.ai { background: var(--ai); }
+.badge.mixed { background: var(--mixed); }
+.badge.abstain { background: var(--abstain); }
+.verdict-note { font-size: 14px; }
+.reasons { margin: 12px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+.reasons li { margin-bottom: 5px; }
+
+/* score rows */
+.row {
+  display: grid; grid-template-columns: 108px 1fr 52px;
+  align-items: center; gap: 10px; margin-bottom: 7px;
+  font-size: 13px;
+}
+.row .name { font-family: var(--mono); }
+.row .name .tag { color: var(--muted); font-size: 10px; }
+/* Both must be block: width/height do not apply to inline elements, and
+   only .track is blockified for free by being a grid item. */
+.track { display: block; height: 9px; background: var(--panel-2); border-radius: 5px; overflow: hidden; }
+.fill { display: block; height: 100%; border-radius: 5px; transition: width .25s ease; }
+.row .val { font-family: var(--mono); text-align: right; }
+.row.total { border-top: 1px solid var(--line); padding-top: 9px; margin-top: 9px; font-weight: 700; }
+.scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+
+/* spans */
+.spans { font-size: 14px; line-height: 1.85; }
+.spans .s { padding: 1px 3px; border-radius: 3px; }
+.legend { display: flex; gap: 14px; font-size: 11px; color: var(--muted); margin-top: 12px; flex-wrap: wrap; align-items: center; }
+.swatch { display: inline-block; width: 26px; height: 9px; border-radius: 3px; vertical-align: middle; margin-right: 5px; }
+
+/* tables */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+td.num, th.num { text-align: right; font-family: var(--mono); }
+.ok { color: var(--human); }
+.bad { color: var(--ai); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 20px; padding: 3px 10px; font-size: 12px; font-family: var(--mono);
+}
+.none { color: var(--muted); font-size: 13px; font-style: italic; }
+
+.caveats { font-size: 12.5px; color: var(--muted); }
+.caveats li { margin-bottom: 7px; }
+.err {
+  border-left: 3px solid var(--ai); background: var(--panel);
+  padding: 12px 14px; border-radius: 6px; font-size: 13px;
+}
+.hidden { display: none; }
+footer { margin-top: 30px; font-size: 12px; color: var(--muted); text-align: center; }
+.spinner {
+  display: inline-block; width: 13px; height: 13px; vertical-align: -2px;
+  border: 2px solid currentColor; border-right-color: transparent;
+  border-radius: 50%; animation: spin .6s linear infinite; margin-right: 7px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>ai-text-eval <span class="v">v2</span></h1>
+</header>
+<p class="sub">
+  Runs entirely on this machine — nothing you paste is sent anywhere.
+  The tool abstains when the evidence or calibration cannot support a verdict.
+</p>
+
+<div class="panel">
+  <textarea id="input" placeholder="Paste text to analyze…" spellcheck="false"></textarea>
+  <div class="controls">
+    <button id="run">Analyze</button>
+    <button id="sample" class="ghost">Load sample</button>
+    <label>FPR cap
+      <select id="cap">
+        <option value="0.005">0.5% — policy grade</option>
+        <option value="0.01">1%</option>
+        <option value="0.05" selected>5% — RAID standard</option>
+        <option value="0.1">10%</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="rob" checked> robustness</label>
+    <span class="count" id="count">0 words</span>
+  </div>
+</div>
+
+<div id="error" class="panel err hidden"></div>
+<div id="results" class="hidden">
+
+  <div class="panel">
+    <h2>Verdict</h2>
+    <div class="verdict">
+      <span id="badge" class="badge">—</span>
+      <span id="verdictNote" class="verdict-note"></span>
+    </div>
+    <ul id="reasons" class="reasons"></ul>
+  </div>
+
+  <div class="panel">
+    <h2>Detector scores</h2>
+    <div class="scale"><span>0 · human-like</span><span>AI-like · 1</span></div>
+    <div id="rows"></div>
+    <div id="oodBox"></div>
+  </div>
+
+  <div class="panel" id="spanPanel">
+    <h2>Where the signal is</h2>
+    <div id="spanBody"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Evidence</h2>
+    <div id="evidence"></div>
+  </div>
+
+  <div class="panel" id="robPanel">
+    <h2>Robustness under attack</h2>
+    <div id="robBody"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Read this before acting on any of it</h2>
+    <ul class="caveats" id="caveats"></ul>
+  </div>
+
+</div>
+
+<footer>ai-text-eval · MIT · local only</footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+const SAMPLE = `In today's fast-paced digital landscape, effective time management has become more crucial than ever. Whether you're a seasoned professional or just starting your career journey, mastering the art of prioritization can be a game-changer. It's important to note that productivity isn't about doing more; it's about doing what matters most. By leveraging proven frameworks, individuals can delve into their daily commitments and identify which tasks truly move the needle.
+
+I used to think being busy meant being productive. Then I spent a week writing down everything I did in fifteen-minute blocks, and the results were humbling. Something like a third of my day went to things nobody had asked for and nobody noticed. The fix wasn't a new app. It was learning to ask, before starting anything, whether this would matter in a month.`;
+
+function scoreColor(s) {
+  // green → amber → red, matching the CLI's thresholds
+  if (s >= 0.70) return 'var(--ai)';
+  if (s >= 0.40) return 'var(--mixed)';
+  return 'var(--human)';
+}
+
+function countWords(t) {
+  const m = t.match(/[A-Za-zÀ-ɏ]+(?:['’][A-Za-zÀ-ɏ]+)*/g);
+  return m ? m.length : 0;
+}
+
+let MIN_WORDS = 100;
+
+function updateCount() {
+  const n = countWords($('input').value);
+  const el = $('count');
+  if (n === 0) { el.textContent = '0 words'; el.className = 'count'; return; }
+  if (n < MIN_WORDS) {
+    el.textContent = `${n} words · ${MIN_WORDS - n} below the floor`;
+    el.className = 'count short';
+  } else {
+    el.textContent = `${n} words`;
+    el.className = 'count';
+  }
+}
+
+function scoreRow(name, score, tag) {
+  const pct = clamp(score * 100, 0, 100);
+  return `<div class="row${tag === 'blended' ? ' total' : ''}">
+    <span class="name">${name}${tag && tag !== 'blended' ? ` <span class="tag">${tag}</span>` : ''}</span>
+    <span class="track"><span class="fill" style="width:${pct}%;background:${scoreColor(score)}"></span></span>
+    <span class="val">${score.toFixed(3)}</span>
+  </div>`;
+}
+
+function renderVerdict(d) {
+  const v = d.verdict;
+  const badge = $('badge');
+  badge.textContent = v.label.toUpperCase();
+  badge.className = 'badge ' + v.label;
+
+  let note = '';
+  if (v.label === 'abstain') note = 'The tool declines to judge this text.';
+  else if (v.label === 'mixed') note = `roughly ${Math.round((v.ai_word_fraction || 0) * 100)}% of the text scores as AI-generated`;
+  else if (v.label === 'ai') note = `clears the threshold certified at FPR ≤ ${(v.fpr_cap * 100).toFixed(2)}%`;
+  else note = 'does not clear the FPR-capped threshold';
+  $('verdictNote').textContent = note;
+
+  const reasons = [];
+  (v.abstain_reasons || []).forEach(r => reasons.push(`<b>${r.replace(/_/g, ' ')}</b>`));
+  (v.notes || []).forEach(n => reasons.push(n));
+  if (v.threshold != null && v.actionable) {
+    reasons.push(`threshold ${v.threshold.toFixed(4)}, conformally certified at FPR ≤ ${(v.fpr_cap * 100).toFixed(2)}%`);
+  }
+  const cal = d.calibration;
+  if (cal && !cal.certified) {
+    reasons.push(`calibration has ${cal.n_calibration} human texts; this cap needs ${cal.min_calibration_size} — ${cal.shortfall} short`);
+  }
+  $('reasons').innerHTML = reasons.map(r => `<li>${r}</li>`).join('');
+}
+
+function renderScores(d) {
+  let html = '';
+  if (d.primary_score != null) html += scoreRow('supervised', d.primary_score, 'primary');
+  Object.keys(d.corroborators).sort().forEach(k => {
+    html += scoreRow(k, d.corroborators[k], '');
+  });
+  html += scoreRow('BLENDED', d.score, 'blended');
+  $('rows').innerHTML = html;
+
+  $('oodBox').innerHTML = d.out_of_distribution
+    ? `<p class="none" style="color:var(--mixed);font-style:normal">
+         Out of distribution — primary and corroborators differ by
+         ${d.ood_disagreement.toFixed(2)}. A supervised detector is most often
+         confidently wrong here.</p>`
+    : '';
+}
+
+function renderSpans(d) {
+  const s = d.spans;
+  if (!s) { $('spanPanel').classList.add('hidden'); return; }
+  $('spanPanel').classList.remove('hidden');
+
+  if (!s.reliable) {
+    $('spanBody').innerHTML = `<p class="none">
+      Too short to resolve internal structure — needs roughly
+      ${s.window_words * 2} words. Span analysis uses ${s.window_words}-word
+      windows and cannot localize anything finer.</p>`;
+    return;
+  }
+
+  const sents = (s.spans || []).map(sp => {
+    const a = clamp((sp.score - 0.35) / 0.5, 0, 1);   // fade in above ~0.35
+    const bg = `color-mix(in srgb, ${scoreColor(sp.score)} ${Math.round(a * 45)}%, transparent)`;
+    const esc = sp.text.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    return `<span class="s" style="background:${bg}" title="score ${sp.score.toFixed(3)}">${esc}</span>`;
+  }).join(' ');
+
+  let head = `<p style="margin:0 0 10px"><b>${Math.round(s.ai_word_fraction * 100)}%</b> of words
+    sit in AI-scoring spans <span class="none">(approximate)</span></p>`;
+  if (s.change_point && s.change_point.significant) {
+    head += `<p class="none" style="font-style:normal;margin:0 0 12px">
+      Possible seam at sentence ${s.change_point.sentence_index}
+      (${s.change_point.mean_before.toFixed(2)} → ${s.change_point.mean_after.toFixed(2)})</p>`;
+  }
+
+  $('spanBody').innerHTML = head + `<div class="spans">${sents}</div>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--human);opacity:.45"></span>human-like</span>
+      <span><span class="swatch" style="background:var(--mixed);opacity:.45"></span>uncertain</span>
+      <span><span class="swatch" style="background:var(--ai);opacity:.45"></span>AI-like</span>
+      <span>· resolution ~${s.window_words} words; biased toward the majority class</span>
+    </div>`;
+}
+
+function renderEvidence(d) {
+  const e = d.evidence || {};
+  let html = '';
+  if (e.phrases) {
+    const hits = Object.entries(e.phrases.hits || {});
+    html += `<p style="margin:0 0 8px">Lexical marker rate
+      <b>${e.phrases.rate.toFixed(1)}</b> per 1000 words</p>`;
+    html += hits.length
+      ? `<div class="chips">${hits.map(([p, n]) =>
+          `<span class="chip">${p}${n > 1 ? ` ×${n}` : ''}</span>`).join('')}</div>`
+      : `<p class="none">no AI-associated markers found</p>`;
+  }
+  if (e.stylometry) {
+    const s = e.stylometry;
+    const rows = [
+      ['Burstiness', s.burstiness, 'sentence-length variation; lower = more AI-like'],
+      ['Lexical diversity', s.mattr, 'MATTR'],
+      ['Mean word length', s.mean_word_len, 'longer = more AI-like'],
+      ['Short sentences', s.short_sentence_rate, 'humans use more'],
+      ['Em-dashes / 1000 words', s.em_dash_per_kw, ''],
+    ];
+    html += `<table style="margin-top:14px"><tbody>` + rows.map(([k, v, note]) =>
+      `<tr><td>${k}</td><td class="num">${v == null ? '—' : v.toFixed(3)}</td>
+       <td class="none" style="font-style:normal">${note}</td></tr>`).join('') + `</tbody></table>`;
+  }
+  $('evidence').innerHTML = html || '<p class="none">no evidence available</p>';
+}
+
+function renderRobustness(d) {
+  const r = d.robustness;
+  if (!r) { $('robPanel').classList.add('hidden'); return; }
+  $('robPanel').classList.remove('hidden');
+  const rows = r.attacks.map(a => {
+    const residual = r.baseline - a.defended;
+    const cls = Math.abs(residual) < 0.02 ? 'ok' : 'bad';
+    return `<tr><td>${a.attack}</td>
+      <td class="num">${a.undefended.toFixed(3)}</td>
+      <td class="num">${a.defended.toFixed(3)}</td>
+      <td class="num ${cls}">${residual >= 0 ? '' : '−'}${Math.abs(residual).toFixed(3)}</td></tr>`;
+  }).join('');
+  $('robBody').innerHTML = `
+    <p style="margin:0 0 10px">Baseline <b>${r.baseline.toFixed(3)}</b></p>
+    <table><thead><tr><th>attack</th><th class="num">undefended</th>
+      <th class="num">defended</th><th class="num">residual</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    <p class="none" style="margin-top:10px">
+      undefended = normalization bypassed · residual near zero means the attack is
+      neutralized. Paraphrase and humanizer attacks need a generator and are not simulated.</p>`;
+}
+
+function renderCaveats(d) {
+  const items = [
+    'A score is evidence about a distribution, not proof about a document.',
+    'Detectors falsely flag non-native English, neurodivergent, and formulaic writing at elevated rates. Never use this as sole evidence against a person.',
+    `Below ~${(d.config && d.config.min_verdict_words) || 100} words no published detector is reliable, including this one.`,
+    'Paraphrasing defeats every detector measured here — and a paraphrase of AI text is still AI text. The score drops; the truth does not.',
+  ];
+  if (d.config && d.config.trained_on_demo) {
+    items.push('The supervised layer was trained on the bundled 36-document demo corpus, which is a toy. Its scores are illustrative, not trustworthy.');
+  }
+  $('caveats').innerHTML = items.map(i => `<li>${i}</li>`).join('');
+}
+
+async function analyze() {
+  const text = $('input').value.trim();
+  if (!text) { showError('Paste some text first.'); return; }
+
+  const btn = $('run');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Analyzing';
+  $('error').classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        fpr_cap: parseFloat($('cap').value),
+        robustness: $('rob').checked,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || `server returned ${res.status}`); return; }
+
+    renderVerdict(data);
+    renderScores(data);
+    renderSpans(data);
+    renderEvidence(data);
+    renderRobustness(data);
+    renderCaveats(data);
+    $('results').classList.remove('hidden');
+  } catch (err) {
+    showError('Could not reach the local server. Is serve.py still running?');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Analyze';
+  }
+}
+
+function showError(msg) {
+  $('error').textContent = msg;
+  $('error').classList.remove('hidden');
+}
+
+$('run').addEventListener('click', analyze);
+$('sample').addEventListener('click', () => { $('input').value = SAMPLE; updateCount(); });
+$('input').addEventListener('input', updateCount);
+$('input').addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') analyze();
+});
+
+fetch('/api/config').then(r => r.json()).then(c => {
+  if (c.min_verdict_words) { MIN_WORDS = c.min_verdict_words; updateCount(); }
+}).catch(() => {});
+
+updateCount();
+</script>
+</body>
+</html>
