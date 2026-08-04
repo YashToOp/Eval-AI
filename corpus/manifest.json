@@ -18,7 +18,7 @@
   },
   "decontamination": {
     "status": "not_run",
-    "note": "Section 4.9 scan runs before release against HC3, GPT-2 output corpus, M4, RAID, MGTBench and the DEV split."
+    "note": "Section 4.9 scan runs before release against HC3, GPT-2 output corpus, M4, RAID, MGTBench and the DEV split. The screening machinery exists (ai_text_eval.gauntlet.decontamination); no external corpus is attached yet (TD-X01, blocked by TD-B03), so a scan run today would report status 'incomplete', not 'passed'. This block is replaced by ScanSummary.to_manifest() once sources are attached."
   },
   "category_exemptions": {
     "F-17": {

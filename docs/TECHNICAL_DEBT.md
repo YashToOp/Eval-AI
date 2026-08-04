@@ -30,8 +30,8 @@ Governing documents: `docs/CORPUS_AUTHORING_SPEC.md` (CAS),
 | Status | Count |
 |---|---|
 | RESOLVED (ratified interpretation) | 3 |
-| DONE (implemented) | 4 |
-| OPEN — Specification decision required | 9 |
+| DONE (implemented) | 5 |
+| OPEN — Specification decision required | 11 |
 | DEFERRED — scheduled to a later phase | 13 |
 | BLOCKED — needs an external resource | 5 |
 
@@ -46,6 +46,7 @@ names the blocker.
 |---|---|---|---|---|---|---|---|
 | TD-A01 | `expected_confusions` requiredness: BS §4.7 omits it, BS §5.2 is silent, CAS §4.2 says "optional but recommended". | `registry.py`, field registry | none | Low | Specification | CAS governs; field is OPTIONAL. Recorded in registry `interpretations` and Phase A doc. | **RESOLVED** 2026-08-05 |
 | TD-A02 | Generator record for `HUMAN_AI_EDITED` and other model-involved labels. Milestone 1 exempted `HUMAN_AI_EDITED` in error. | `validate.py` generator rule | none | Medium | Specification | Required for EVERY non-HUMAN label; only pure HUMAN exempt. Corrected with a regression test. | **RESOLVED** 2026-08-05 |
+| TD-A04 | Severity of an incomplete decontamination scan. CAS §3.7 screens at candidacy "so contaminated material [does not consume] review effort"; BS §9.1(d) makes the scan a release acceptance criterion. Neither says what happens when the reference corpora are unavailable. | `decontamination.py` `Stage` | Phase B (R-09) | Medium | Specification | An incomplete scan WARNS at candidacy and ERRORS at release. Erroring at candidacy would make the corpus unbuildable while TD-X01 is unresolved — no candidate could be submitted. Contamination actually found blocks at both stages, and the verdict is `INCOMPLETE` in both. Recorded rather than assumed; ratify or overrule. | **OPEN** |
 | TD-A03 | Whether newer schema fields (e.g. `lineage`) retroactively invalidate older records. | `registry.py`, `validate.py` version arithmetic | none | Medium | Specification | Schema requirements are version-specific; v1 records validated under v1, v2 under v2. Newer fields never invalidate older records. | **RESOLVED** 2026-08-05 |
 
 ---
@@ -64,6 +65,7 @@ names the blocker.
 | TD-G08 | X-12 MT label policy: default (`HUMAN_AI_EDITED`, transform=MT) is in force and recorded in `manifest.json`, but the manifest note is a placeholder pending explicit ratification. | `manifest.json` policy block, `categories.json` X-12 | Any X-12 authoring | Low | Specification | Ratify the default or record a different decision in the manifest. Default currently applied per §3.3. | **OPEN** |
 | TD-G09 | §8.5 share-cap denominator. "No single author or session may dominate a cell" is a share, but of what: the cell's *current* population, or its *planned target* size? Against the current population every cell's first sample is 100% of it, so a literal reading rejects every cell's first sample and makes the corpus unbuildable. | `duplicates.py` `_style_caps`, coverage plan (R-12), acceptance A-13 | Phase D (R-12) | Medium | Specification | Interim: caps are enforced only once the cell holds `ceil(1/cap)` samples, below which the cap cannot be satisfied by any submission; `SHARE_CAP_NOT_YET_ENFORCEABLE` is emitted so a pass is never silent. Governance should state the denominator, at which point the interim rule is replaced rather than tuned. | **OPEN** |
 
+| TD-G10 | BS §4.9 mandates 13-gram containment checks but states a numeric rule only for the contiguous 50-character overlap; there is no threshold on the containment *ratio*. | `decontamination.py` `ScreenConfig` | Any release scan | Medium | Specification | No ratio threshold is invented: `containment_review_threshold` is `None`, ratios are measured and reported per source, `CONTAINMENT_THRESHOLD_UNSET` marks the gap, and only the stated 50-character rule decides. Governance sets the value (or confirms none is wanted). | **OPEN** |
 ---
 
 ## C. Deferred implementation (Engineering-owned, scheduled)
@@ -74,7 +76,7 @@ names the blocker.
 | TD-D02 | Mechanical derivation engines (R-06): recompute `ai_token_share` from diff chains, verify span tilings against production records, replay diff chains. Hand-entered shares are currently accepted if internally coherent. | new module, `validate.py` | Phase B | High | Engineering | TD-D01 | **DONE** `c552b39` (R-06) |
 | TD-D03 | Candidate intake with the Generation Firewall (R-07, P2/X-1): structural rejection of any model-involved candidate targeting HUMAN, contributor declaration capture, freeze execution wired to lifecycle. | new module, `lifecycle.py`, `ledger.py` | Phase B | Critical | Engineering | TD-D01 | **DONE** (R-07) `db80d35`; contributor-side process logging still TD-X05 |
 | TD-D04 | Duplicate detection, six classes (R-08, §8). | `duplicates.py` | Phase B | High | Engineering | TD-G05, TD-D09 | **DONE** (R-08); thresholds uncalibrated (TD-G05), semantic backend is a lexical stand-in (TD-X06), share caps interim (TD-G09) |
-| TD-D05 | Decontamination screening (R-09, §3.7, BS §4.9): 13-gram containment vs external corpora and DEV. | new module | Phase B | High | Engineering | TD-X01 | DEFERRED |
+| TD-D05 | Decontamination screening (R-09, §3.7, BS §4.9): 13-gram containment vs external corpora and DEV. | `decontamination.py` | Phase B | High | Engineering | TD-X01 | **DONE** (R-09) — machinery, source interface, manifest block and §9.1(d) gate built; no external corpus is attached, so every scan is `INCOMPLETE` until TD-X01 resolves |
 | TD-D06 | Review workflow (R-10, §6): dual review, kappa ≥ 0.8 gating, adjudication, calibration exercises, COI routing. | new module, `ledger.py` | Phase C | High | Engineering | TD-D01 | DEFERRED |
 | TD-D07 | Acceptance gate (R-11, §12/§13): mechanize A-1…A-13 where possible, explicit recorded confirmations otherwise. | new module | Phase C | High | Engineering | TD-D01…D06 | DEFERRED |
 | TD-D08 | Coverage plan artifact (R-12, §8.5, A-13): cell targets, share caps, topic-group registry. | new module/data | Phase D | Medium | Engineering | TD-G04 | DEFERRED |
@@ -86,6 +88,7 @@ names the blocker.
 | TD-D14 | Runner tasks T3 (origin attribution) and T4 (span localization) raise `NotImplementedError` rather than return a number. | `runner.py` | Phase E | Medium | Engineering | — | DEFERRED |
 | TD-D15 | Calibration and confidence reporting (BS §9.3b/c): ECE, Brier, Track U overconfidence, leakage index (§9.3e), G9 held-out delta (§9.3f), transform curves (§9.3g). Constants present in `spec.py`; reporting not built. | new module beside `runner.py` | Phase E | Medium | Engineering | — | DEFERRED |
 | TD-D16 | `validate_relationships` checks a `supersedes` target exists but not that it is in the REJECTED/superseded state; that cross-references the identifier registry. | `validate.py`, `lifecycle.py` | Phase B (R-07) | Low | Engineering | TD-D03 | DEFERRED |
+| TD-D18 | CAS §2 Stage 5 orchestration (VALIDATED → SCREENED): run the R-08 duplicate screen and the R-09 decontamination screen, and place a candidate *on hold* — not rejected — on an undeclared similarity or a contamination hit. Two things are missing for a durable hold record: the §14.1 authority matrix is a closed vocabulary with no screening action, and the lifecycle log has no non-transition note event. Both screens are complete and callable; nothing calls them yet. | new module, `ledger.py`, `lifecycle.py` | Phase C | Medium | Engineering | TD-D06 | DEFERRED |
 | TD-D17 | Retrofit `tests/test_review_regressions.py` (pre-GAUNTLET detector regressions) to the §8.3 record schema. Currently satisfies §8.1 in spirit but lacks `bug_id`/`expected_behavior`/`status`. | `tests/`, `regression/` | Phase E (R-17) | Low | Engineering | TD-D12 | DEFERRED |
 
 ---
@@ -106,7 +109,7 @@ names the blocker.
 
 | ID | Dependency | Needed by | Owner | Status |
 |---|---|---|---|---|
-| TD-X01 | External public detection corpora (HC3, RAID, M4, MGTBench, GPT-2 output) + licenses. | TD-D05 decontamination, TD-D11 difficulty | Infrastructure | Not acquired (see TD-B03) |
+| TD-X01 | External public detection corpora (HC3, RAID, M4, MGTBench, GPT-2 output) + licenses. | TD-D05 decontamination, TD-D11 difficulty | Infrastructure | Not acquired (see TD-B03). Attach point exists: `decontamination.ReferenceSource` — a corpus becomes a source by answering 13-gram membership. `REQUIRED_REFERENCES` names each one, and its absence is reported per scan. |
 | TD-X02 | `torch` / `transformers` runtime for the DF1 panel member and model-based detectors. | TD-D11 difficulty (empirical) | Infrastructure | Available only via the `perplexity` extra; not installed in the current environment |
 | TD-X03 | An LLM judge (API access) for the DF4 panel member. | TD-D11 difficulty (empirical) | Infrastructure | Not provisioned |
 | TD-X04 | Private, access-controlled, logged storage for HIDDEN content and evidence (§10.2). | TD-B01, TD-D13 | Infrastructure | Not provisioned |
