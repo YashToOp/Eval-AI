@@ -30,8 +30,9 @@ Governing documents: `docs/CORPUS_AUTHORING_SPEC.md` (CAS),
 | Status | Count |
 |---|---|
 | RESOLVED (ratified interpretation) | 3 |
-| OPEN — Specification decision required | 8 |
-| DEFERRED — scheduled to a later phase | 17 |
+| DONE (implemented) | 4 |
+| OPEN — Specification decision required | 9 |
+| DEFERRED — scheduled to a later phase | 13 |
 | BLOCKED — needs an external resource | 5 |
 
 Cross-cutting: several DEFERRED items are also BLOCKED; the `Depends on` column
@@ -61,6 +62,7 @@ names the blocker.
 | TD-G06 | License/rights vocabulary (§4.2: "unknown" is not a value) is not enumerated. | `registry.py` (license field), acceptance A-9 | Phase C (R-11) | Medium | Specification | Define the closed rights vocabulary; add to the field registry. Currently only non-empty is checked. | **OPEN** |
 | TD-G07 | Per-panel-member decision-threshold / margin definitions for the D1–D5 empirical rules (§7.3). | Difficulty system (R-16) | Phase E (R-16) | Medium | Specification | Document each panel member's threshold and "high margin" definition alongside the panel version. | **OPEN** |
 | TD-G08 | X-12 MT label policy: default (`HUMAN_AI_EDITED`, transform=MT) is in force and recorded in `manifest.json`, but the manifest note is a placeholder pending explicit ratification. | `manifest.json` policy block, `categories.json` X-12 | Any X-12 authoring | Low | Specification | Ratify the default or record a different decision in the manifest. Default currently applied per §3.3. | **OPEN** |
+| TD-G09 | §8.5 share-cap denominator. "No single author or session may dominate a cell" is a share, but of what: the cell's *current* population, or its *planned target* size? Against the current population every cell's first sample is 100% of it, so a literal reading rejects every cell's first sample and makes the corpus unbuildable. | `duplicates.py` `_style_caps`, coverage plan (R-12), acceptance A-13 | Phase D (R-12) | Medium | Specification | Interim: caps are enforced only once the cell holds `ceil(1/cap)` samples, below which the cap cannot be satisfied by any submission; `SHARE_CAP_NOT_YET_ENFORCEABLE` is emitted so a pass is never silent. Governance should state the denominator, at which point the interim rule is replaced rather than tuned. | **OPEN** |
 
 ---
 
@@ -68,10 +70,10 @@ names the blocker.
 
 | ID | Description | Affected | Blocking milestone | Risk | Owner | Depends on | Status |
 |---|---|---|---|---|---|---|---|
-| TD-D01 | Evidence package schemas and chain of custody (R-05, CAS §5). Currently only `provenance_ref` path resolution exists; nothing validates what it points to. | new module | Phase B | High | Engineering | — | DEFERRED |
-| TD-D02 | Mechanical derivation engines (R-06): recompute `ai_token_share` from diff chains, verify span tilings against production records, replay diff chains. Hand-entered shares are currently accepted if internally coherent. | new module, `validate.py` | Phase B | High | Engineering | TD-D01 | DEFERRED |
-| TD-D03 | Candidate intake with the Generation Firewall (R-07, P2/X-1): structural rejection of any model-involved candidate targeting HUMAN, contributor declaration capture, freeze execution wired to lifecycle. | new module, `lifecycle.py`, `ledger.py` | Phase B | Critical | Engineering | TD-D01 | DEFERRED |
-| TD-D04 | Duplicate detection, six classes (R-08, §8). None implemented. | new module | Phase B | High | Engineering | TD-G05, TD-D09 | DEFERRED |
+| TD-D01 | Evidence package schemas and chain of custody (R-05, CAS §5). Currently only `provenance_ref` path resolution exists; nothing validates what it points to. | new module | Phase B | High | Engineering | — | **DONE** `f7bdcdc` (R-05) |
+| TD-D02 | Mechanical derivation engines (R-06): recompute `ai_token_share` from diff chains, verify span tilings against production records, replay diff chains. Hand-entered shares are currently accepted if internally coherent. | new module, `validate.py` | Phase B | High | Engineering | TD-D01 | **DONE** `c552b39` (R-06) |
+| TD-D03 | Candidate intake with the Generation Firewall (R-07, P2/X-1): structural rejection of any model-involved candidate targeting HUMAN, contributor declaration capture, freeze execution wired to lifecycle. | new module, `lifecycle.py`, `ledger.py` | Phase B | Critical | Engineering | TD-D01 | **DONE** (R-07) `db80d35`; contributor-side process logging still TD-X05 |
+| TD-D04 | Duplicate detection, six classes (R-08, §8). | `duplicates.py` | Phase B | High | Engineering | TD-G05, TD-D09 | **DONE** (R-08); thresholds uncalibrated (TD-G05), semantic backend is a lexical stand-in (TD-X06), share caps interim (TD-G09) |
 | TD-D05 | Decontamination screening (R-09, §3.7, BS §4.9): 13-gram containment vs external corpora and DEV. | new module | Phase B | High | Engineering | TD-X01 | DEFERRED |
 | TD-D06 | Review workflow (R-10, §6): dual review, kappa ≥ 0.8 gating, adjudication, calibration exercises, COI routing. | new module, `ledger.py` | Phase C | High | Engineering | TD-D01 | DEFERRED |
 | TD-D07 | Acceptance gate (R-11, §12/§13): mechanize A-1…A-13 where possible, explicit recorded confirmations otherwise. | new module | Phase C | High | Engineering | TD-D01…D06 | DEFERRED |
@@ -109,6 +111,7 @@ names the blocker.
 | TD-X03 | An LLM judge (API access) for the DF4 panel member. | TD-D11 difficulty (empirical) | Infrastructure | Not provisioned |
 | TD-X04 | Private, access-controlled, logged storage for HIDDEN content and evidence (§10.2). | TD-B01, TD-D13 | Infrastructure | Not provisioned |
 | TD-X05 | Process-logging tooling for T1 human commissioning (keystroke/edit-session capture, §3.2/§5.3). | TD-D03 intake (human contributors) | Infrastructure | Not provisioned |
+| TD-X06 | A sentence-embedding model for §8.3 semantic near-duplicate screening. The bundled `LexicalSemanticBackend` is content-word overlap and is reported as `semantic_backend="lexical"` so no reader mistakes it for embeddings; it misses restatements a reviewer would catch (regression-tested in `test_the_lexical_stand_in_misses_a_restatement_at_the_default_threshold`). | R-08 semantic class | Infrastructure | Not provisioned; attaches via the `SemanticBackend` protocol with no caller changes |
 
 ---
 
