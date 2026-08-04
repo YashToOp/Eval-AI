@@ -134,22 +134,39 @@ Repository total: 374 passing.
   hand-edit prohibition (§7.3) is enforced by the difficulty system (R-16),
   not here.
 
-## Specification ambiguities encountered
+## Canonical interpretations (ratified)
 
-1. **`expected_confusions` requiredness.** BS §4.7's required list omits it;
-   BS §5.2 does not mark it optional; CAS §4.2 states "optional but
-   recommended." Resolved in favour of the CAS (newer, normative for
-   authoring). Recorded here because it changes validation behaviour.
-2. **Generator record for `HUMAN_AI_EDITED`.** CAS §4.2 requires a generator
-   "whenever the label is not HUMAN"; the editing model is the model
-   involved. Milestone 1 read this too narrowly. Now corrected; flagged in
-   case the intended reading was narrower.
-3. **Lineage on legacy v1 Track V records.** CAS §4.4 requires a derived_from
-   link for Track V, but `lineage` is a v2 field. Phase A applies the lineage
-   requirement only at schema v2+, so a hypothetical v1 V-record is not held
-   to a field its schema lacks. All real Track V authoring is v2, so this is a
-   boundary case, but the choice is worth recording.
+The three ambiguities raised during Phase A were reviewed and ratified. These
+are now **canonical**: they are settled, not open questions, and MUST NOT be
+reopened without a specification amendment (CAS §14.3). They are tracked in
+the technical debt register as `RESOLVED` for provenance.
 
-These join the still-open items from milestone 1 (BS §9.1(h) vs §6.2 33-category
-gap; Track U category numbering), which remain governance decisions and are not
-touched here.
+1. **`expected_confusions` is OPTIONAL.** The CAS governs; BS §4.7's omission
+   and BS §5.2's silence are superseded by CAS §4.2 ("optional but
+   recommended"). The field registry marks it `required: false`.
+   *Ratified 2026-08-05.*
+2. **Generator record is required for every model-involved label.** Any sample
+   whose label is not `HUMAN` MUST carry a generator record; only pure `HUMAN`
+   is exempt. This covers `AI`, `AI_HUMAN_EDITED`, `HUMAN_AI_EDITED`, and
+   `COLLAB_MIXED`. The milestone-1 carve-out for `HUMAN_AI_EDITED` was a
+   defect and is corrected. *Ratified 2026-08-05.*
+3. **Schema requirements are version-specific; newer schemas never
+   retroactively invalidate older records.** A v1 record is validated under
+   the v1 schema, a v2 record under the v2 schema. A field introduced at v2
+   (e.g. `lineage`) is required only of v2+ records. This is the general rule,
+   of which the Track V lineage requirement is one instance.
+   *Ratified 2026-08-05.*
+
+## Still-open governance items (do not implement around)
+
+The following remain **intentionally unresolved** and await an explicit
+specification update. No code works around them; the validator reports them as
+findings and stops there.
+
+- **BS §9.1(h) vs §6.2 failure-mode coverage** — 33 of 99 categories have no
+  §6.2 entry, so §9.1(h) cannot pass as written.
+- **Track U category numbering** — §3.7 describes the track without numbering
+  its categories; identifiers are permanent (§9.5) so this must be settled
+  before any U sample is registered.
+
+Both are logged in the technical debt register with owner *Specification*.

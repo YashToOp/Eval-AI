@@ -178,10 +178,12 @@ def validate_sample(sample: Sample, categories: dict | None = None,
         if shape_ok and sample.text is not None:
             r.extend(_check_span_tiling(sample, sid))
 
-    # Generator record (CAS §4.2, §4.4). Required for every non-HUMAN label —
-    # a model was involved in the base, the edit, or the mix — and forbidden
-    # for HUMAN (its presence there is a P2 alarm). The earlier carve-out for
-    # HUMAN_AI_EDITED was wrong: the editing model still needs a record.
+    # Generator record (CAS §4.2, §4.4). CANONICAL ruling TD-A02 (ratified
+    # 2026-08-05): required for every non-HUMAN label — a model was involved in
+    # the base, the edit, or the mix — and forbidden for HUMAN (its presence
+    # there is a P2 alarm). The earlier carve-out for HUMAN_AI_EDITED was a
+    # defect: the editing model still needs a record. Do not reopen without a
+    # CAS §14.3 amendment.
     if sample.label is not None and sample.label != "HUMAN":
         if sample.generator is None:
             r.error("4.4", "GENERATOR_REQUIRED",

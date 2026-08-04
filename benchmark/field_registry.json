@@ -194,7 +194,8 @@
    "purpose": "Full production configuration; REQUIRED whenever label is not HUMAN, MUST be absent when label is HUMAN — presence with HUMAN is a P2 alarm (CAS 4.2)",
    "type": "object_or_null",
    "since": "1",
-   "required": true
+   "required": true,
+   "notes": "CANONICAL (ratified 2026-08-05): required for EVERY non-HUMAN label (AI, AI_HUMAN_EDITED, HUMAN_AI_EDITED, COLLAB_MIXED); MUST be absent for HUMAN. Only pure HUMAN is exempt."
   },
   "transforms": {
    "purpose": "Ordered transform records with method identity, version/date, parameters; each regenerable or exactly verifiable (CAS 4.2)",
@@ -231,7 +232,8 @@
    "purpose": "DF codes expected to err; optional but recommended",
    "type": "string",
    "since": "1",
-   "required": false
+   "required": false,
+   "notes": "CANONICAL (ratified 2026-08-05): OPTIONAL. CAS 4.2 governs over BS 4.7/5.2. Do not reopen without a CAS 14.3 amendment."
   },
   "noisy_label": {
    "purpose": "True only for T3 DEV material (CAS 5.2)",
@@ -365,6 +367,34 @@
    "registry_version": "2",
    "date": "2026-08-05",
    "change": "CAS adoption: lineage, difficulty panel binding fields; relationship-type, role vocabularies. Additive only; v1 records remain valid under v1."
+  },
+  {
+   "registry_version": "2",
+   "date": "2026-08-05",
+   "change": "Ratified canonical interpretations TD-A01 (expected_confusions optional), TD-A02 (generator required for all non-HUMAN), TD-A03 (version-specific validation). No schema change."
+  }
+ ],
+ "interpretations": [
+  {
+   "id": "TD-A01",
+   "field": "expected_confusions",
+   "ruling": "optional",
+   "ratified": "2026-08-05",
+   "basis": "CAS 4.2 governs; BS 4.7/5.2 superseded"
+  },
+  {
+   "id": "TD-A02",
+   "field": "generator",
+   "ruling": "required for all non-HUMAN labels; absent for HUMAN",
+   "ratified": "2026-08-05",
+   "basis": "CAS 4.2"
+  },
+  {
+   "id": "TD-A03",
+   "field": "*",
+   "ruling": "schema requirements are version-specific; newer fields never retroactively invalidate older records",
+   "ratified": "2026-08-05",
+   "basis": "CAS 4.1, 4.3"
   }
  ]
 }
