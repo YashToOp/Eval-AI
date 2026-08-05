@@ -30,8 +30,8 @@ Governing documents: `docs/CORPUS_AUTHORING_SPEC.md` (CAS),
 | Status | Count |
 |---|---|
 | RESOLVED (ratified interpretation) | 3 |
-| DONE (implemented) | 6 |
-| OPEN — Specification decision required | 12 |
+| DONE (implemented) | 7 |
+| OPEN — Specification decision required | 16 |
 | DEFERRED — scheduled to a later phase | 12 |
 | BLOCKED — needs an external resource | 4 |
 | CLOSED — will not do | 1 |
@@ -68,6 +68,10 @@ names the blocker.
 
 | TD-G10 | BS §4.9 mandates 13-gram containment checks but states a numeric rule only for the contiguous 50-character overlap; there is no threshold on the containment *ratio*. | `decontamination.py` `ScreenConfig` | Any release scan | Medium | Specification | No ratio threshold is invented: `containment_review_threshold` is `None`, ratios are measured and reported per source, `CONTAINMENT_THRESHOLD_UNSET` marks the gap, and only the stated 50-character rule decides. Governance sets the value (or confirms none is wanted). | **OPEN** |
 | TD-G11 | §14.1's authority matrix lists no screening authority, but §14.2 requires every privileged action to land in the decision record, and a Stage 5 hold is a consequential, contestable decision about a sample. | `ledger.py` `PRIVILEGED_ACTIONS`, `screening.py` | none (implemented) | Low | Specification | `screen` was added to the closed action vocabulary by explicit project decision rather than overloading `modify_metadata_pre_acceptance`, which would file a screening hold as a metadata edit. Screening is mechanical, so the actor is `system`. §14.3 makes this a prospective amendment to record in the next numbered spec version. | **OPEN** |
+| TD-G12 | Which registry fields are "judgment fields". BS §4.6 names them by description ("register tags, difficulty, PII checks, quality screening") and CAS §6.3 requires kappa per field; neither enumerates them. | `field_registry.json` `judgment_fields`, `review.py` | Any review batch | Medium | Specification | Applied interpretation recorded in the registry's `interpretations` block with `status: proposed`: categorical = domain, format, language, difficulty, pii_status, noisy_label; free-text = rationale, target_weakness. Kappa is computed only for the categorical set — prose agreement is not a kappa. Ratify or amend. | **OPEN** |
+| TD-G13 | No minimum batch size for kappa. §6.3 requires kappa ≥ 0.8 per field per batch; a kappa over three items is noise. | `review.py` `agreement_gate` | Any review batch | Medium | Specification | No minimum is invented. Item counts accompany every result and `KAPPA_BATCH_SIZE_NOT_GOVERNED` is emitted on every gate run so a small-n pass is never read as a strong one. | **OPEN** |
+| TD-G14 | §6.6 retrains a reviewer who misses seeded defects "repeatedly" but sets no number. | `review.py` `ReviewerRecord` | Reviewer onboarding | Low | Specification | `retraining_report(threshold)` takes the number; with none supplied it reports the record and says the rule cannot be applied mechanically. Also unset: the exercise period ("periodic") and what makes a reviewer "senior" enough to adjudicate (§6.2). | **OPEN** |
+| TD-G15 | Kappa unit mismatch: BS §4.6 and §9.1(c) say "per field per release", CAS §6.3 says "per field per batch". A release contains many batches, so the two gates are not the same test. | `review.py`, release gate (R-11) | First release | Medium | Specification | CAS governs per the TD-A01 precedent, so `agreement()` computes per batch. A release-level roll-up is a separate computation and is not implied by passing every batch. Ratify which unit gates a release. | **OPEN** |
 ---
 
 ## C. Deferred implementation (Engineering-owned, scheduled)
@@ -79,7 +83,7 @@ names the blocker.
 | TD-D03 | Candidate intake with the Generation Firewall (R-07, P2/X-1): structural rejection of any model-involved candidate targeting HUMAN, contributor declaration capture, freeze execution wired to lifecycle. | new module, `lifecycle.py`, `ledger.py` | Phase B | Critical | Engineering | TD-D01 | **DONE** (R-07) `db80d35`; contributor-side process logging still TD-X05 |
 | TD-D04 | Duplicate detection, six classes (R-08, §8). | `duplicates.py` | Phase B | High | Engineering | TD-G05, TD-D09 | **DONE** (R-08); thresholds uncalibrated (TD-G05), semantic backend is a lexical stand-in (TD-X06), share caps interim (TD-G09) |
 | TD-D05 | Decontamination screening (R-09, §3.7, BS §4.9): 13-gram containment vs external corpora and DEV. | `decontamination.py` | Phase B | High | Engineering | TD-X01 | **DONE** (R-09) — machinery, source interface, manifest block and §9.1(d) gate built; no external corpus is attached, so every scan is `INCOMPLETE` until TD-X01 resolves |
-| TD-D06 | Review workflow (R-10, §6): dual review, kappa ≥ 0.8 gating, adjudication, calibration exercises, COI routing. | new module, `ledger.py` | Phase C | High | Engineering | TD-D01 | DEFERRED |
+| TD-D06 | Review workflow (R-10, §6): dual review, kappa ≥ 0.8 gating, adjudication, calibration exercises, COI routing. | `review.py` | Phase C | High | Engineering | — | **DONE** (R-10); residuals TD-G12 (judgment-field set), TD-G13 (kappa batch size), TD-G14 ("repeatedly"), TD-D19 (declared-interest register) |
 | TD-D07 | Acceptance gate (R-11, §12/§13): mechanize A-1…A-13 where possible, explicit recorded confirmations otherwise. | new module | Phase C | High | Engineering | TD-D01…D06 | DEFERRED |
 | TD-D08 | Coverage plan artifact (R-12, §8.5, A-13): cell targets, share caps, topic-group registry. | new module/data | Phase D | Medium | Engineering | TD-G04 | DEFERRED |
 | TD-D09 | Split assignment with contributor blinding (R-13, §10.3): randomized release-manager assignment, contributor-to-cell mapping. | new module, `ledger.py` | Phase D | High | Engineering | TD-B04 | DEFERRED |
@@ -91,6 +95,7 @@ names the blocker.
 | TD-D15 | Calibration and confidence reporting (BS §9.3b/c): ECE, Brier, Track U overconfidence, leakage index (§9.3e), G9 held-out delta (§9.3f), transform curves (§9.3g). Constants present in `spec.py`; reporting not built. | new module beside `runner.py` | Phase E | Medium | Engineering | — | DEFERRED |
 | TD-D16 | `validate_relationships` checks a `supersedes` target exists but not that it is in the REJECTED/superseded state; that cross-references the identifier registry. | `validate.py`, `lifecycle.py` | Phase B (R-07) | Low | Engineering | TD-D03 | DEFERRED |
 | TD-D18 | CAS §2 Stage 5 orchestration (VALIDATED → SCREENED): run the R-08 duplicate screen and the R-09 decontamination screen, and place a candidate *on hold* — not rejected — on an undeclared similarity or a contamination hit. | `screening.py`, `ledger.py` | Phase C | Medium | Engineering | — | **DONE**. `screen` added to the §14.1 action vocabulary by explicit project decision (see TD-G11); holds live in the decision ledger, so no lifecycle note event was needed. Three dispositions: ADVANCED / HELD (stays VALIDATED, re-screenable) / REJECTED (§8.1 only). |
+| TD-D19 | Declared-interest register (§6.6): reviewers with a declared interest in a detector under evaluation on the affected cells MUST NOT review. `check_reviewer_eligibility` takes the register as a parameter and warns `DECLARED_INTERESTS_NOT_SUPPLIED` when absent, but the project keeps no such register and has no process for declaring an interest. | new data + process | Phase C | Medium | Infrastructure | TD-D06 | DEFERRED |
 | TD-D17 | Retrofit `tests/test_review_regressions.py` (pre-GAUNTLET detector regressions) to the §8.3 record schema. Currently satisfies §8.1 in spirit but lacks `bug_id`/`expected_behavior`/`status`. | `tests/`, `regression/` | Phase E (R-17) | Low | Engineering | TD-D12 | DEFERRED |
 
 ---
