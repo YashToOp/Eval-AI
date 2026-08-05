@@ -225,15 +225,92 @@ def test_gauntlet_never_imports_the_detector_subsystem(module):
 
 
 def test_detector_subsystem_never_imports_gauntlet():
-    """The reverse direction: detector code must run without the benchmark."""
+    """The reverse direction: detector code must run without the benchmark.
+
+    `lwe` is excluded because it is a third subsystem, not detector code: the
+    Logged Writing Environment *produces* benchmark evidence and is allowed to
+    depend on the benchmark at exactly one module (see the LWE guards below).
+    """
     detector_root = REPO_ROOT / "src" / "ai_text_eval"
-    paths = [p for p in detector_root.rglob("*.py") if "gauntlet" not in p.parts]
+    paths = [p for p in detector_root.rglob("*.py")
+             if "gauntlet" not in p.parts and "lwe" not in p.parts]
     assert paths, "no detector modules found; the guard would pass vacuously"
     for path in paths:
         assert "gauntlet" not in _imported_names(path), (
             f"{path.relative_to(REPO_ROOT)} imports gauntlet; the detector "
             "subsystem must not depend on the benchmark."
         )
+
+
+# =====================================================================
+# 2b. The Logged Writing Environment (docs/LWE_DESIGN.md §13.4)
+# =====================================================================
+
+LWE_DIR = REPO_ROOT / "src" / "ai_text_eval" / "lwe"
+
+#: The one module permitted to cross into GAUNTLET. Everything else in `lwe`
+#: must run as a standalone writing application.
+LWE_BOUNDARY_MODULE = "export.py"
+
+
+def _lwe_modules() -> list[Path]:
+    return sorted(p for p in LWE_DIR.glob("*.py"))
+
+
+def test_lwe_package_is_non_empty():
+    """Guard the guard."""
+    assert len(_lwe_modules()) >= 3
+
+
+@pytest.mark.parametrize("module", _lwe_modules(), ids=lambda p: p.name)
+def test_lwe_never_imports_the_detector_subsystem(module):
+    """A writing tool that imported a detector could be asked to score its own
+    contributor, which is the circularity CAS §5.4 forbids."""
+    offenders = _imported_names(module) & DETECTOR_MODULES
+    assert not offenders, (
+        f"lwe/{module.name} imports detector module(s) {sorted(offenders)}")
+
+
+@pytest.mark.parametrize("module", _lwe_modules(), ids=lambda p: p.name)
+def test_only_the_export_module_depends_on_gauntlet(module):
+    """The writing environment must stand alone as an application.
+
+    If `journal` or `session` grew a GAUNTLET import, the tool could no longer
+    be handed to a writer who has no interest in the benchmark, and the
+    strategy's "usable as an independent application" would quietly lapse.
+    """
+    if module.name in (LWE_BOUNDARY_MODULE, "__init__.py"):
+        return
+    assert "gauntlet" not in _imported_names(module), (
+        f"lwe/{module.name} imports gauntlet; only {LWE_BOUNDARY_MODULE} may "
+        "cross the boundary")
+
+
+def test_the_export_boundary_actually_exists():
+    """Guard the guard: if export.py stopped importing gauntlet the test above
+    would pass vacuously for the wrong reason."""
+    assert "gauntlet" in _imported_names(LWE_DIR / LWE_BOUNDARY_MODULE)
+
+
+#: Vocabulary that would indicate the LWE had started judging its contributor
+#: rather than recording them (docs/LWE_DESIGN.md §1.1).
+SCORING_VOCABULARY = ("authenticity", "humanness", "suspicion_score",
+                      "likelihood_human", "genuineness", "confidence_score")
+
+
+@pytest.mark.parametrize("module", _lwe_modules(), ids=lambda p: p.name)
+def test_the_lwe_never_scores_a_session(module):
+    """The hard architectural rule: record, never score.
+
+    A classifier over a contributor's writing process is the same circularity
+    CAS §5.4 forbids over their text, one level up — it would let an
+    algorithm's opinion of who writes like a human shape the corpus.
+    """
+    source = module.read_text(encoding="utf-8").lower()
+    for word in SCORING_VOCABULARY:
+        assert word not in source, (
+            f"lwe/{module.name} mentions {word!r}; the LWE records counts and "
+            "durations and never computes a judgment about a session")
 
 
 def test_runner_depends_only_on_a_scoring_protocol():
