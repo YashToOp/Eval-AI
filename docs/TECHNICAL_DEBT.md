@@ -33,7 +33,8 @@ Governing documents: `docs/CORPUS_AUTHORING_SPEC.md` (CAS),
 | DONE (implemented) | 6 |
 | OPEN — Specification decision required | 12 |
 | DEFERRED — scheduled to a later phase | 12 |
-| BLOCKED — needs an external resource | 5 |
+| BLOCKED — needs an external resource | 4 |
+| CLOSED — will not do | 1 |
 
 Cross-cutting: several DEFERRED items are also BLOCKED; the `Depends on` column
 names the blocker.
@@ -102,7 +103,7 @@ names the blocker.
 | TD-B02 | Difficulty empirical panel needs model access: DF1 (likelihood) requires `torch`/`transformers`; DF4 (judge) requires an LLM API. Neither ships in the current environment. | R-16 difficulty | Phase E | Medium | Infrastructure | Provision the panel runtime; provisional-difficulty machinery can be built without it (TD-D11 splits accordingly). | **BLOCKED** |
 | TD-B03 | Decontamination and reference-difficulty need external public detection corpora (HC3, RAID, M4, MGTBench, GPT-2 output corpus) with their licenses. | R-09, R-16 | Phase B | High | Infrastructure | Acquire and license the external corpora; record checksums in the manifest. | **BLOCKED** |
 | TD-B04 | Contributor-blinding of split assignment (§10.3) is only as strong as repository access separation; in a single public repo, assignment records are visible. | R-13 split assignment | Phase D | High | Infrastructure | Decide where assignment records physically live (private store, TD-B01) so contributors cannot infer assignments. | **BLOCKED** |
-| TD-B05 | Fixture migration (milestone 3): the 36-sample demo fixture must enter DEV as T3/noisy via the normal lifecycle. Its human half additionally trips §3.2's "recalled or reconstructed from memory" prohibition (transcribed public-domain text), which T3+DEV tolerates but must be recorded in rationale. | `corpus/`, `lifecycle.py` | Milestone 3 | Low | Engineering | Register each fixture sample through the lifecycle (idea→…→dev) with `noisy_label=true`, `provenance_tier=T3`, and a rationale noting the memory-transcription caveat. Blocked on intake (TD-D03). | **BLOCKED** on TD-D03 |
+| TD-B05 | Fixture migration. **The original analysis was wrong and the migration is impossible.** Attempted once intake existed; neither half is admissible. *Human half:* its own metadata says "transcribed from memory" — model-produced text, so declared honestly it is P2 model involvement in a HUMAN candidate, and X-1 makes that rejection automatic and non-curable. T3/DEV lowers the *provenance* bar, not the P2 bar (§1.3 inviolable); recollection is separately inadmissible under §5.4. *AI half:* genuinely model-authored but with no BS §4.4 generation record (model version, provider, prompt, decoding, seeds, raw response), and BS §4.2 requires T1 for all AI categories by construction, unscoped by split. Writing that record now would be fabricated evidence. | `corpus/`, `src/ai_text_eval/data/` | Milestone 3 | Medium | Engineering | The fixture stays what it was built as — a detector test set — and is never migrated. GAUNTLET's human cells need T0 archive records or T1 commissioned writing under logging; its AI cells need real captured generation sessions. Proven mechanically and pinned in `tests/test_fixture_corpus_admissibility.py` (33 tests) so the conclusion cannot be quietly reversed. | **CLOSED — will not do** |
 
 ---
 
