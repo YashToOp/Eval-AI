@@ -45,6 +45,13 @@ PRIVILEGED_ACTIONS = frozenset({
     "review_content",
     "adjudicate",
     "confirm_acceptance",
+    # §14.1 lists no screening authority, but §14.2 requires every privileged
+    # action to land in the decision record and a Stage 5 hold is exactly
+    # that: a consequential, contestable decision about a sample. Added as an
+    # explicit project decision (TD-D18) rather than recording screening holds
+    # as `modify_metadata_pre_acceptance`, which would file them as edits to
+    # metadata that screening never touches.
+    "screen",
     "modify_metadata_pre_acceptance",
     "errata_modify_metadata",
     "change_label",

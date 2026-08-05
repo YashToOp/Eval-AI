@@ -30,9 +30,9 @@ Governing documents: `docs/CORPUS_AUTHORING_SPEC.md` (CAS),
 | Status | Count |
 |---|---|
 | RESOLVED (ratified interpretation) | 3 |
-| DONE (implemented) | 5 |
-| OPEN — Specification decision required | 11 |
-| DEFERRED — scheduled to a later phase | 13 |
+| DONE (implemented) | 6 |
+| OPEN — Specification decision required | 12 |
+| DEFERRED — scheduled to a later phase | 12 |
 | BLOCKED — needs an external resource | 5 |
 
 Cross-cutting: several DEFERRED items are also BLOCKED; the `Depends on` column
@@ -66,6 +66,7 @@ names the blocker.
 | TD-G09 | §8.5 share-cap denominator. "No single author or session may dominate a cell" is a share, but of what: the cell's *current* population, or its *planned target* size? Against the current population every cell's first sample is 100% of it, so a literal reading rejects every cell's first sample and makes the corpus unbuildable. | `duplicates.py` `_style_caps`, coverage plan (R-12), acceptance A-13 | Phase D (R-12) | Medium | Specification | Interim: caps are enforced only once the cell holds `ceil(1/cap)` samples, below which the cap cannot be satisfied by any submission; `SHARE_CAP_NOT_YET_ENFORCEABLE` is emitted so a pass is never silent. Governance should state the denominator, at which point the interim rule is replaced rather than tuned. | **OPEN** |
 
 | TD-G10 | BS §4.9 mandates 13-gram containment checks but states a numeric rule only for the contiguous 50-character overlap; there is no threshold on the containment *ratio*. | `decontamination.py` `ScreenConfig` | Any release scan | Medium | Specification | No ratio threshold is invented: `containment_review_threshold` is `None`, ratios are measured and reported per source, `CONTAINMENT_THRESHOLD_UNSET` marks the gap, and only the stated 50-character rule decides. Governance sets the value (or confirms none is wanted). | **OPEN** |
+| TD-G11 | §14.1's authority matrix lists no screening authority, but §14.2 requires every privileged action to land in the decision record, and a Stage 5 hold is a consequential, contestable decision about a sample. | `ledger.py` `PRIVILEGED_ACTIONS`, `screening.py` | none (implemented) | Low | Specification | `screen` was added to the closed action vocabulary by explicit project decision rather than overloading `modify_metadata_pre_acceptance`, which would file a screening hold as a metadata edit. Screening is mechanical, so the actor is `system`. §14.3 makes this a prospective amendment to record in the next numbered spec version. | **OPEN** |
 ---
 
 ## C. Deferred implementation (Engineering-owned, scheduled)
@@ -88,7 +89,7 @@ names the blocker.
 | TD-D14 | Runner tasks T3 (origin attribution) and T4 (span localization) raise `NotImplementedError` rather than return a number. | `runner.py` | Phase E | Medium | Engineering | — | DEFERRED |
 | TD-D15 | Calibration and confidence reporting (BS §9.3b/c): ECE, Brier, Track U overconfidence, leakage index (§9.3e), G9 held-out delta (§9.3f), transform curves (§9.3g). Constants present in `spec.py`; reporting not built. | new module beside `runner.py` | Phase E | Medium | Engineering | — | DEFERRED |
 | TD-D16 | `validate_relationships` checks a `supersedes` target exists but not that it is in the REJECTED/superseded state; that cross-references the identifier registry. | `validate.py`, `lifecycle.py` | Phase B (R-07) | Low | Engineering | TD-D03 | DEFERRED |
-| TD-D18 | CAS §2 Stage 5 orchestration (VALIDATED → SCREENED): run the R-08 duplicate screen and the R-09 decontamination screen, and place a candidate *on hold* — not rejected — on an undeclared similarity or a contamination hit. Two things are missing for a durable hold record: the §14.1 authority matrix is a closed vocabulary with no screening action, and the lifecycle log has no non-transition note event. Both screens are complete and callable; nothing calls them yet. | new module, `ledger.py`, `lifecycle.py` | Phase C | Medium | Engineering | TD-D06 | DEFERRED |
+| TD-D18 | CAS §2 Stage 5 orchestration (VALIDATED → SCREENED): run the R-08 duplicate screen and the R-09 decontamination screen, and place a candidate *on hold* — not rejected — on an undeclared similarity or a contamination hit. | `screening.py`, `ledger.py` | Phase C | Medium | Engineering | — | **DONE**. `screen` added to the §14.1 action vocabulary by explicit project decision (see TD-G11); holds live in the decision ledger, so no lifecycle note event was needed. Three dispositions: ADVANCED / HELD (stays VALIDATED, re-screenable) / REJECTED (§8.1 only). |
 | TD-D17 | Retrofit `tests/test_review_regressions.py` (pre-GAUNTLET detector regressions) to the §8.3 record schema. Currently satisfies §8.1 in spirit but lacks `bug_id`/`expected_behavior`/`status`. | `tests/`, `regression/` | Phase E (R-17) | Low | Engineering | TD-D12 | DEFERRED |
 
 ---
