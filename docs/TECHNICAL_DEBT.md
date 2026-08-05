@@ -30,7 +30,7 @@ Governing documents: `docs/CORPUS_AUTHORING_SPEC.md` (CAS),
 | Status | Count |
 |---|---|
 | RESOLVED (ratified interpretation) | 3 |
-| DONE (implemented) | 7 |
+| DONE (implemented) | 8 |
 | OPEN — Specification decision required | 16 |
 | DEFERRED — scheduled to a later phase | 12 |
 | BLOCKED — needs an external resource | 4 |
@@ -84,7 +84,7 @@ names the blocker.
 | TD-D04 | Duplicate detection, six classes (R-08, §8). | `duplicates.py` | Phase B | High | Engineering | TD-G05, TD-D09 | **DONE** (R-08); thresholds uncalibrated (TD-G05), semantic backend is a lexical stand-in (TD-X06), share caps interim (TD-G09) |
 | TD-D05 | Decontamination screening (R-09, §3.7, BS §4.9): 13-gram containment vs external corpora and DEV. | `decontamination.py` | Phase B | High | Engineering | TD-X01 | **DONE** (R-09) — machinery, source interface, manifest block and §9.1(d) gate built; no external corpus is attached, so every scan is `INCOMPLETE` until TD-X01 resolves |
 | TD-D06 | Review workflow (R-10, §6): dual review, kappa ≥ 0.8 gating, adjudication, calibration exercises, COI routing. | `review.py` | Phase C | High | Engineering | — | **DONE** (R-10); residuals TD-G12 (judgment-field set), TD-G13 (kappa batch size), TD-G14 ("repeatedly"), TD-D19 (declared-interest register) |
-| TD-D07 | Acceptance gate (R-11, §12/§13): mechanize A-1…A-13 where possible, explicit recorded confirmations otherwise. | new module | Phase C | High | Engineering | TD-D01…D06 | DEFERRED |
+| TD-D07 | Acceptance gate (R-11, §12/§13): mechanize A-1…A-13 where possible, explicit recorded confirmations otherwise. | `acceptance.py` | Phase C | High | Engineering | — | **DONE** (R-11). All 25 criteria registered with a per-criterion mechanization class. Three statuses (PASS / FAIL / UNCONFIRMED) — an unestablished criterion blocks exactly like a failed one. 8 criteria cannot pass mechanically today: A-9/X-9 (TD-G06), A-13/X-12 (TD-G04), A-12 (TD-D20), plus X-7/X-10/X-11 which are judgment by nature. |
 | TD-D08 | Coverage plan artifact (R-12, §8.5, A-13): cell targets, share caps, topic-group registry. | new module/data | Phase D | Medium | Engineering | TD-G04 | DEFERRED |
 | TD-D09 | Split assignment with contributor blinding (R-13, §10.3): randomized release-manager assignment, contributor-to-cell mapping. | new module, `ledger.py` | Phase D | High | Engineering | TD-B04 | DEFERRED |
 | TD-D10 | Release builder and post-release workflows (R-15, §9): immutable checksummed releases, semver enforcement, errata, deprecation, redaction tombstones. | new module, `lifecycle.py`, `ledger.py` | Phase D | High | Engineering | — | DEFERRED |
@@ -96,6 +96,7 @@ names the blocker.
 | TD-D16 | `validate_relationships` checks a `supersedes` target exists but not that it is in the REJECTED/superseded state; that cross-references the identifier registry. | `validate.py`, `lifecycle.py` | Phase B (R-07) | Low | Engineering | TD-D03 | DEFERRED |
 | TD-D18 | CAS §2 Stage 5 orchestration (VALIDATED → SCREENED): run the R-08 duplicate screen and the R-09 decontamination screen, and place a candidate *on hold* — not rejected — on an undeclared similarity or a contamination hit. | `screening.py`, `ledger.py` | Phase C | Medium | Engineering | — | **DONE**. `screen` added to the §14.1 action vocabulary by explicit project decision (see TD-G11); holds live in the decision ledger, so no lifecycle note event was needed. Three dispositions: ADVANCED / HELD (stays VALIDATED, re-screenable) / REJECTED (§8.1 only). |
 | TD-D19 | Declared-interest register (§6.6): reviewers with a declared interest in a detector under evaluation on the affected cells MUST NOT review. `check_reviewer_eligibility` takes the register as a parameter and warns `DECLARED_INTERESTS_NOT_SUPPLIED` when absent, but the project keeps no such register and has no process for declaring an interest. | new data + process | Phase C | Medium | Infrastructure | TD-D06 | DEFERRED |
+| TD-D20 | Provenance-challenge register (§12 A-12: "no provenance challenge against the sample is open"). No register exists and no process defines how a challenge is raised, tracked, or closed, so A-12 cannot pass mechanically and reports the gap. | new data + process | Phase D | Medium | Engineering | TD-D07 | DEFERRED |
 | TD-D17 | Retrofit `tests/test_review_regressions.py` (pre-GAUNTLET detector regressions) to the §8.3 record schema. Currently satisfies §8.1 in spirit but lacks `bug_id`/`expected_behavior`/`status`. | `tests/`, `regression/` | Phase E (R-17) | Low | Engineering | TD-D12 | DEFERRED |
 
 ---
